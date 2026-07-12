@@ -1,0 +1,9 @@
+.build/
+.build-*/
+.build-package/
+.package-stage/
+dist/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+*.xcresult

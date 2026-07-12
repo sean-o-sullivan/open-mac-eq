@@ -1,0 +1,769 @@
+import AppKit
+import CoreAudio
+import Foundation
+import ServiceManagement
+import UniformTypeIdentifiers
+
+@MainActor
+final class SpikeViewModel: ObservableObject {
+    @Published private(set) var devices: [AudioDeviceDescriptor] = []
+    @Published var selectedUID = ""
+    @Published private(set) var isRunning = false
+    @Published private(set) var status = "Looking for AirPods Pro…"
+    @Published private(set) var snapshot = PassThroughSnapshot.zero
+    @Published private(set) var logLines: [String] = []
+    @Published var dspEnabled = true {
+        didSet { publishDSPConfiguration() }
+    }
+    @Published var testFrequencyLog10 = log10(1_000.0) {
+        didSet { publishDSPConfiguration() }
+    }
+    @Published var testGainDb = 0.0 {
+        didSet { publishDSPConfiguration() }
+    }
+    @Published var testQ = 1.0 {
+        didSet { publishDSPConfiguration() }
+    }
+    @Published var stressBandCount = 10 {
+        didSet { publishDSPConfiguration() }
+    }
+    @Published private(set) var profiles: [EQProfile] = []
+    @Published private(set) var activeProfile: EQProfile?
+    @Published private(set) var pendingProfileOffer: EQProfile?
+    @Published var profileNameDraft = "My openEq profile"
+    @Published private(set) var autoApplyBehavior: ProfileAutoApplyBehavior = .ask
+    @Published var selectedBandID: UUID?
+    @Published var showPhaseResponse = false
+    @Published var profileTextDraft = ""
+    @Published var autoStartWhenAirPodsSelected = UserDefaults.standard.bool(
+        forKey: "autoStartWhenAirPodsSelected"
+    ) {
+        didSet {
+            UserDefaults.standard.set(
+                autoStartWhenAirPodsSelected,
+                forKey: "autoStartWhenAirPodsSelected"
+            )
+            scheduleAutoStartIfNeeded()
+        }
+    }
+    @Published private(set) var launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+    @Published var hideDeviceIdentity = UserDefaults.standard.object(
+        forKey: "hideDeviceIdentity"
+    ) == nil ? true : UserDefaults.standard.bool(forKey: "hideDeviceIdentity") {
+        didSet {
+            UserDefaults.standard.set(hideDeviceIdentity, forKey: "hideDeviceIdentity")
+            refreshDevices()
+        }
+    }
+
+    private let engine: TapPassThroughEngine?
+    private let profileStore: EQProfileStore?
+    private let associationStore: DeviceProfileAssociationStore?
+    private var runningDeviceUID: String?
+    private var runningSampleRate: Double?
+    private var lastObservedDefaultAirPodsUID: String?
+    private var workspaceObservers: [NSObjectProtocol] = []
+
+    init() {
+        engine = TapPassThroughEngine()
+        profileStore = try? EQProfileStore.applicationSupport()
+        associationStore = try? DeviceProfileAssociationStore.applicationSupport()
+        if engine == nil {
+            status = "Could not allocate real-time diagnostics."
+            appendLog(status)
+        }
+        reloadProfiles()
+        refreshDevices()
+        publishDSPConfiguration()
+        appendLog("Discovered \(devices.count) output device(s).")
+        devices.forEach { device in
+            appendLog(
+                "Output device: default=\(device.isDefaultOutput), " +
+                "AirPodsPro=\(device.isAirPodsPro), rate=\(device.sampleRate), " +
+                "buffer=\(device.bufferFrameSize), transport=\(device.transportName)"
+            )
+        }
+        if ProcessInfo.processInfo.arguments.contains("--auto-start") {
+            DispatchQueue.main.async { [weak self] in
+                self?.start()
+            }
+        }
+        installWorkspaceObservers()
+    }
+
+    deinit {
+        for observer in workspaceObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
+    }
+
+    var selectedDevice: AudioDeviceDescriptor? {
+        devices.first { $0.uid == selectedUID }
+    }
+
+    var canStart: Bool {
+        guard let device = selectedDevice else { return false }
+        return !isRunning && device.isAirPodsPro && device.isDefaultOutput && device.isAlive && engine != nil
+    }
+
+    var testFrequencyHz: Double {
+        pow(10, testFrequencyLog10)
+    }
+
+    var profilesForSelectedDevice: [EQProfile] {
+        profiles.filter { $0.deviceUID == selectedUID }
+    }
+
+    var graphSampleRate: Double {
+        runningSampleRate ?? selectedDevice?.sampleRate ?? 48_000
+    }
+
+    var isActiveProfileSaved: Bool {
+        guard let activeProfile else { return false }
+        return profiles.contains { $0.id == activeProfile.id }
+    }
+
+    func displayName(for device: AudioDeviceDescriptor) -> String {
+        guard hideDeviceIdentity else { return device.name }
+        return device.isAirPodsPro ? "AirPods Pro (identity hidden)" : "Output device (identity hidden)"
+    }
+
+    func refreshDevices() {
+        do {
+            let updated = try AudioDeviceCatalog.outputDevices()
+            devices = updated
+
+            if !updated.contains(where: { $0.uid == selectedUID }) {
+                selectedUID = updated.first(where: { $0.isAirPodsPro && $0.isDefaultOutput })?.uid
+                    ?? updated.first(where: \.isAirPodsPro)?.uid
+                    ?? updated.first?.uid
+                    ?? ""
+            }
+
+            if !isRunning {
+                if let airPods = updated.first(where: { $0.isAirPodsPro && $0.isDefaultOutput }) {
+                    status = "Ready: \(displayName(for: airPods)) is the default output."
+                } else if updated.contains(where: \.isAirPodsPro) {
+                    status = "AirPods Pro found; select them as the macOS output."
+                } else {
+                    status = "Connect AirPods Pro and select them as the macOS output."
+                }
+            }
+            observeDefaultAirPodsProfileOpportunity()
+        } catch {
+            if !isRunning {
+                status = error.localizedDescription
+            }
+            appendLog("Device refresh failed: \(error.localizedDescription)")
+        }
+    }
+
+    func start() {
+        guard let device = selectedDevice, let engine else { return }
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
+           let bundleIdentifier = Bundle.main.bundleIdentifier {
+            let otherInstances = NSRunningApplication.runningApplications(
+                withBundleIdentifier: bundleIdentifier
+            ).filter { $0.processIdentifier != getpid() }
+            guard otherInstances.isEmpty else {
+                status = "Another openEq instance is already running."
+                appendLog(status)
+                return
+            }
+        }
+        do {
+            try configureDSP(sampleRate: device.sampleRate)
+            let configuration = try engine.start(device: device)
+            runningDeviceUID = device.uid
+            runningSampleRate = device.sampleRate
+            isRunning = true
+            status = "DSP active. Play audio and adjust the validation controls."
+            snapshot = engine.snapshot()
+            appendLog("Started fail-open real-time DSP path.")
+            configuration.diagnosticLines.forEach(appendLog)
+        } catch {
+            status = "Start failed: \(error.localizedDescription)"
+            appendLog(status)
+            stop(reason: nil)
+        }
+    }
+
+    func stopButtonPressed() {
+        stop(reason: "Stopped by user.")
+    }
+
+    func poll() {
+        if isRunning, let engine {
+            snapshot = engine.snapshot()
+        }
+
+        do {
+            let updated = try AudioDeviceCatalog.outputDevices()
+            devices = updated
+            guard isRunning, let runningDeviceUID else {
+                refreshSelectionAfterPoll(updated)
+                observeDefaultAirPodsProfileOpportunity()
+                return
+            }
+
+            guard let current = updated.first(where: { $0.uid == runningDeviceUID }) else {
+                stop(reason: "AirPods disconnected; tap destroyed.")
+                return
+            }
+            guard current.isDefaultOutput else {
+                stop(reason: "Default output changed; tap destroyed.")
+                return
+            }
+            guard current.isAlive else {
+                stop(reason: "AirPods device became unavailable; tap destroyed.")
+                return
+            }
+            if let runningSampleRate, abs(current.sampleRate - runningSampleRate) >= 0.5 {
+                stop(reason: "Device sample rate changed; stopped for a safe rebuild.")
+            }
+        } catch {
+            if isRunning {
+                stop(reason: "Device monitoring failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func refreshSelectionAfterPoll(_ updated: [AudioDeviceDescriptor]) {
+        if !updated.contains(where: { $0.uid == selectedUID }) {
+            selectedUID = updated.first(where: { $0.isAirPodsPro && $0.isDefaultOutput })?.uid
+                ?? updated.first(where: \.isAirPodsPro)?.uid
+                ?? updated.first?.uid
+                ?? ""
+        }
+        if let airPods = updated.first(where: { $0.isAirPodsPro && $0.isDefaultOutput }) {
+            status = "Ready: \(displayName(for: airPods)) is the default output."
+        } else if updated.contains(where: \.isAirPodsPro) {
+            status = "AirPods Pro found; select them as the macOS output."
+        } else {
+            status = "Connect AirPods Pro and select them as the macOS output."
+        }
+    }
+
+    func createProfileFromValidationControls() {
+        guard let profileStore, !selectedUID.isEmpty else { return }
+        do {
+            let profile = EQProfile(
+                name: profileNameDraft,
+                deviceUID: selectedUID,
+                bands: [
+                    EQBand(
+                        type: .peaking,
+                        frequencyHz: testFrequencyHz,
+                        gainDb: testGainDb,
+                        q: testQ
+                    ),
+                ]
+            )
+            let saved = try profileStore.save(profile)
+            reloadProfiles()
+            try activateProfile(saved, rememberForDevice: true)
+            appendLog("Saved profile \"\(saved.name)\".")
+        } catch {
+            status = "Profile save failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func createNewProfile() {
+        guard !selectedUID.isEmpty else { return }
+        let band = EQBand()
+        activeProfile = EQProfile(
+            name: "Untitled openEq profile",
+            deviceUID: selectedUID,
+            bands: [band]
+        )
+        profileNameDraft = "Untitled openEq profile"
+        selectedBandID = band.id
+        publishDSPConfiguration()
+    }
+
+    func applyPastedProfileText() {
+        do {
+            try activateImportedProfile(EQTextProfileImporter.decode(
+                text: profileTextDraft,
+                name: profileNameDraft,
+                deviceUID: selectedUID
+            ))
+        } catch {
+            status = "EQ text import failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func importProfileFile(from url: URL) {
+        do {
+            let data = try readImportData(from: url)
+            if url.pathExtension.lowercased() == "json" {
+                var profile = try EQProfileCodec.decode(data)
+                profile.deviceUID = selectedUID
+                try activateImportedProfile(profile)
+            } else {
+                try activateImportedProfile(EQTextProfileImporter.decode(
+                    data: data,
+                    name: url.deletingPathExtension().lastPathComponent,
+                    deviceUID: selectedUID
+                ))
+            }
+        } catch {
+            status = "Profile import failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func loadBuiltInJM1Profile() {
+        do {
+            guard let url = Bundle.main.url(
+                forResource: "airpods-pro-3-jm1-10band",
+                withExtension: "txt"
+            ) else {
+                throw SpikeError("Built-in JM-1 preset resource is missing.")
+            }
+            try activateImportedProfile(EQTextProfileImporter.decode(
+                data: Data(contentsOf: url),
+                name: "AirPods Pro 3 — JM-1 10-band",
+                deviceUID: selectedUID
+            ))
+        } catch {
+            status = "Built-in profile failed to load: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func exportActiveProfileJSON() {
+        guard let activeProfile else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = activeProfile.name
+            .replacingOccurrences(of: "/", with: "-") + ".json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try EQProfileCodec.encode(activeProfile).write(to: url, options: .atomic)
+            appendLog("Exported profile JSON to \(url.path).")
+        } catch {
+            status = "Profile export failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func selectProfile(id: UUID?) {
+        guard let id else {
+            activeProfile = nil
+            selectedBandID = nil
+            publishDSPConfiguration()
+            return
+        }
+        guard let profile = profiles.first(where: { $0.id == id }) else { return }
+        do {
+            try activateProfile(profile, rememberForDevice: true)
+        } catch {
+            status = "Profile load failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func renameActiveProfile() {
+        guard let profileStore, let activeProfile else { return }
+        do {
+            let renamed = try profileStore.rename(id: activeProfile.id, to: profileNameDraft)
+            reloadProfiles()
+            self.activeProfile = renamed
+            appendLog("Renamed profile to \"\(renamed.name)\".")
+        } catch {
+            status = "Profile rename failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func saveActiveProfileChanges() {
+        guard let profileStore, var activeProfile else { return }
+        do {
+            activeProfile.name = profileNameDraft
+            activeProfile.deviceUID = selectedUID
+            let saved = try profileStore.save(activeProfile)
+            self.activeProfile = saved
+            reloadProfiles()
+            try rememberActiveProfileForDevice()
+            appendLog("Saved profile \"\(saved.name)\" with \(saved.bands.count) band(s).")
+        } catch {
+            status = "Profile save failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func updateBand(_ updatedBand: EQBand) {
+        guard var profile = activeProfile,
+              let index = profile.bands.firstIndex(where: { $0.id == updatedBand.id }) else { return }
+        profile.bands[index] = updatedBand
+        activeProfile = profile
+        selectedBandID = updatedBand.id
+        publishDSPConfiguration()
+    }
+
+    func addBand(type: BiquadFilterType = .peaking) {
+        guard var profile = activeProfile,
+              profile.bands.count < EQProfile.maximumBandCount else { return }
+        let band = EQBand(type: type)
+        profile.bands.append(band)
+        activeProfile = profile
+        selectedBandID = band.id
+        publishDSPConfiguration()
+    }
+
+    func removeBand(id: UUID) {
+        guard var profile = activeProfile else { return }
+        profile.bands.removeAll { $0.id == id }
+        activeProfile = profile
+        if selectedBandID == id {
+            selectedBandID = profile.bands.first?.id
+        }
+        publishDSPConfiguration()
+    }
+
+    func moveBand(id: UUID, offset: Int) {
+        guard var profile = activeProfile,
+              let source = profile.bands.firstIndex(where: { $0.id == id }) else { return }
+        let destination = source + offset
+        guard profile.bands.indices.contains(destination) else { return }
+        let band = profile.bands.remove(at: source)
+        profile.bands.insert(band, at: destination)
+        activeProfile = profile
+        publishDSPConfiguration()
+    }
+
+    func updatePreamp(_ value: Double) {
+        guard var profile = activeProfile, value.isFinite else { return }
+        profile.preampDb = min(max(value, -24), 12)
+        activeProfile = profile
+        publishDSPConfiguration()
+    }
+
+    func importReferenceCurve(from url: URL) {
+        guard var profile = activeProfile else { return }
+        do {
+            profile.referenceCurve = try ReferenceCurveImporter.decode(
+                data: readImportData(from: url),
+                name: url.deletingPathExtension().lastPathComponent
+            )
+            activeProfile = profile
+            appendLog("Loaded reference curve \"\(profile.referenceCurve?.name ?? "")\".")
+        } catch {
+            status = "Reference curve import failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func clearReferenceCurve() {
+        guard var profile = activeProfile else { return }
+        profile.referenceCurve = nil
+        activeProfile = profile
+    }
+
+    func deleteActiveProfile() {
+        guard let profileStore, let activeProfile else { return }
+        do {
+            try profileStore.delete(id: activeProfile.id)
+            self.activeProfile = nil
+            selectedBandID = nil
+            reloadProfiles()
+            if let associationStore {
+                try associationStore.save(DeviceProfileAssociation(
+                    deviceUID: selectedUID,
+                    lastProfileID: nil,
+                    autoApplyBehavior: autoApplyBehavior
+                ))
+            }
+            publishDSPConfiguration()
+            appendLog("Deleted profile \"\(activeProfile.name)\".")
+        } catch {
+            status = "Profile delete failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func applyPendingProfile(always: Bool) {
+        guard let pendingProfileOffer else { return }
+        do {
+            if always {
+                try setAutoApplyBehavior(.always)
+            }
+            try activateProfile(pendingProfileOffer, rememberForDevice: true)
+            self.pendingProfileOffer = nil
+        } catch {
+            status = "Profile apply failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    func dismissPendingProfile() {
+        pendingProfileOffer = nil
+    }
+
+    func setAutoApplyBehavior(_ behavior: ProfileAutoApplyBehavior) throws {
+        autoApplyBehavior = behavior
+        guard let associationStore, !selectedUID.isEmpty else { return }
+        let rememberedProfileID = isActiveProfileSaved
+            ? activeProfile?.id
+            : try associationStore.association(for: selectedUID)?.lastProfileID
+        try associationStore.save(DeviceProfileAssociation(
+            deviceUID: selectedUID,
+            lastProfileID: rememberedProfileID,
+            autoApplyBehavior: behavior
+        ))
+    }
+
+    func setLaunchAtLoginEnabled(_ enabled: Bool) {
+        do {
+            if enabled {
+                if SMAppService.mainApp.status != .enabled {
+                    try SMAppService.mainApp.register()
+                }
+            } else if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            }
+            launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+            appendLog("Launch at login \(launchAtLoginEnabled ? "enabled" : "disabled").")
+        } catch {
+            launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+            status = "Launch-at-login change failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    private func stop(reason: String?) {
+        engine?.stop()
+        isRunning = false
+        runningDeviceUID = nil
+        runningSampleRate = nil
+        if let reason {
+            status = reason
+            appendLog(reason)
+        }
+        refreshDevices()
+    }
+
+    private func appendLog(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        let line = "[\(formatter.string(from: Date()))] \(message)"
+        logLines.append(line)
+        if let data = "\(line)\n".data(using: .utf8) {
+            FileHandle.standardError.write(data)
+        }
+        if logLines.count > 150 {
+            logLines.removeFirst(logLines.count - 150)
+        }
+    }
+
+    private func publishDSPConfiguration() {
+        guard let sampleRate = runningSampleRate ?? selectedDevice?.sampleRate else { return }
+        do {
+            try configureDSP(sampleRate: sampleRate)
+        } catch {
+            status = "DSP update rejected: \(error.localizedDescription)"
+        }
+    }
+
+    private func configureDSP(sampleRate: Double) throws {
+        guard let engine else { return }
+        guard dspEnabled else {
+            try engine.setDSPConfiguration(coefficients: [])
+            return
+        }
+
+        if let activeProfile {
+            try engine.setDSPConfiguration(
+                coefficients: activeProfile.coefficients(sampleRate: sampleRate),
+                preampDb: activeProfile.preampDb
+            )
+            return
+        }
+
+        let count = min(max(stressBandCount, 1), Int(EQRealtimeDSPMaximumBandCount))
+        let maximumFrequency = min(20_000, sampleRate * 0.49)
+        let primaryFrequency = min(max(testFrequencyHz, 20), maximumFrequency)
+        var coefficients = [BiquadCoefficients]()
+        coefficients.reserveCapacity(count)
+
+        coefficients.append(try RBJBiquadDesigner.coefficients(
+            for: BiquadParameters(
+                type: .peaking,
+                frequencyHz: primaryFrequency,
+                gainDb: min(max(testGainDb, -12), 12),
+                q: min(max(testQ, 0.1), 20)
+            ),
+            sampleRate: sampleRate
+        ))
+
+        if count > 1 {
+            let low = log10(30.0)
+            let high = log10(maximumFrequency)
+            for index in 1..<count {
+                let position = Double(index - 1) / Double(max(count - 2, 1))
+                let frequency = pow(10, low + (high - low) * position)
+                coefficients.append(try RBJBiquadDesigner.coefficients(
+                    for: BiquadParameters(
+                        type: .peaking,
+                        frequencyHz: frequency,
+                        gainDb: 0,
+                        q: 0.5 + Double(index % 7) * 0.35
+                    ),
+                    sampleRate: sampleRate
+                ))
+            }
+        }
+
+        try engine.setDSPConfiguration(coefficients: coefficients)
+    }
+
+    private func reloadProfiles() {
+        guard let profileStore else { return }
+        do {
+            profiles = try profileStore.loadAll()
+            if let activeProfile,
+               let refreshed = profiles.first(where: { $0.id == activeProfile.id }) {
+                self.activeProfile = refreshed
+            }
+        } catch {
+            status = "Profile library failed to load: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    private func activateProfile(_ profile: EQProfile, rememberForDevice: Bool) throws {
+        guard profile.deviceUID == selectedUID else {
+            throw SpikeError("Profile belongs to a different Core Audio device UID.")
+        }
+        activeProfile = try profile.validated()
+        profileNameDraft = profile.name
+        selectedBandID = profile.bands.first?.id
+        try configureDSP(sampleRate: runningSampleRate ?? selectedDevice?.sampleRate ?? 48_000)
+
+        if rememberForDevice {
+            try rememberActiveProfileForDevice()
+        }
+        appendLog("Applied profile \"\(profile.name)\" to the selected AirPods device.")
+    }
+
+    private func activateImportedProfile(_ profile: EQProfile) throws {
+        activeProfile = try profile.validated()
+        profileNameDraft = profile.name
+        selectedBandID = profile.bands.first?.id
+        profileTextDraft = ""
+        try configureDSP(sampleRate: graphSampleRate)
+        appendLog("Imported \(profile.bands.count)-band profile \"\(profile.name)\"; save to retain it.")
+    }
+
+    private func rememberActiveProfileForDevice() throws {
+        guard let associationStore else { return }
+        try associationStore.save(DeviceProfileAssociation(
+            deviceUID: selectedUID,
+            lastProfileID: activeProfile?.id,
+            autoApplyBehavior: autoApplyBehavior
+        ))
+    }
+
+    private func observeDefaultAirPodsProfileOpportunity() {
+        let currentUID = devices.first(where: { $0.isAirPodsPro && $0.isDefaultOutput })?.uid
+        guard currentUID != lastObservedDefaultAirPodsUID else { return }
+        lastObservedDefaultAirPodsUID = currentUID
+        pendingProfileOffer = nil
+        guard let currentUID, let associationStore else { return }
+        if !isRunning {
+            selectedUID = currentUID
+        }
+        if activeProfile?.deviceUID != currentUID {
+            activeProfile = nil
+        }
+
+        do {
+            if let association = try associationStore.association(for: currentUID) {
+                autoApplyBehavior = association.autoApplyBehavior
+                if let profileID = association.lastProfileID,
+                   let profile = profiles.first(where: {
+                       $0.id == profileID && $0.deviceUID == currentUID
+                   }) {
+                    switch association.autoApplyBehavior {
+                    case .always:
+                        try activateProfile(profile, rememberForDevice: false)
+                    case .ask:
+                        pendingProfileOffer = profile
+                    case .never:
+                        break
+                    }
+                }
+            } else {
+                autoApplyBehavior = .ask
+            }
+            scheduleAutoStartIfNeeded()
+        } catch {
+            status = "Device profile association failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    private func scheduleAutoStartIfNeeded() {
+        guard autoStartWhenAirPodsSelected,
+              !isRunning,
+              activeProfile != nil,
+              pendingProfileOffer == nil,
+              canStart else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                  self.autoStartWhenAirPodsSelected,
+                  !self.isRunning,
+                  self.pendingProfileOffer == nil,
+                  self.canStart else { return }
+            self.start()
+        }
+    }
+
+    private func installWorkspaceObservers() {
+        let center = NSWorkspace.shared.notificationCenter
+        workspaceObservers.append(center.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.isRunning {
+                    self.stop(reason: "Mac is sleeping; stopped DSP and restored direct audio.")
+                }
+            }
+        })
+        workspaceObservers.append(center.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.lastObservedDefaultAirPodsUID = nil
+                self.refreshDevices()
+                self.appendLog("Mac woke; refreshed AirPods and profile association state.")
+            }
+        })
+    }
+
+    private func readImportData(from url: URL) throws -> Data {
+        let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+        guard values.isRegularFile != false else {
+            throw SpikeError("Import source must be a regular file.")
+        }
+        let maximumBytes = 5 * 1_024 * 1_024
+        if let fileSize = values.fileSize, fileSize > maximumBytes {
+            throw SpikeError("Import files are limited to 5 MB.")
+        }
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        guard data.count <= maximumBytes else {
+            throw SpikeError("Import files are limited to 5 MB.")
+        }
+        return data
+    }
+}

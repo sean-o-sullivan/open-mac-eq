@@ -1,0 +1,393 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00100000000000000000001 /* AirPodsEQSpikeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000001 /* AirPodsEQSpikeApp.swift */; };
+		A00100000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000002 /* ContentView.swift */; };
+		A00100000000000000000003 /* SpikeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000003 /* SpikeViewModel.swift */; };
+		A00100000000000000000004 /* CoreAudioSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000004 /* CoreAudioSupport.swift */; };
+		A00100000000000000000005 /* AudioDeviceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000005 /* AudioDeviceCatalog.swift */; };
+		A00100000000000000000006 /* TapPassThroughEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000006 /* TapPassThroughEngine.swift */; };
+		A00100000000000000000007 /* SpikeMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000007 /* SpikeMath.swift */; };
+		A00100000000000000000008 /* RealtimeBridge.c in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000008 /* RealtimeBridge.c */; };
+		A00100000000000000000009 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0010000000000000000000D /* CoreAudio.framework */; };
+		A0010000000000000000000A /* SpikeMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000000E /* SpikeMathTests.swift */; };
+		A0010000000000000000000B /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0010000000000000000000F /* XCTest.framework */; };
+		A0010000000000000000000C /* BiquadDSP.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000011 /* BiquadDSP.swift */; };
+		A0010000000000000000000D /* BiquadDSPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000012 /* BiquadDSPTests.swift */; };
+		A0010000000000000000000E /* EQProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000013 /* EQProfile.swift */; };
+		A0010000000000000000000F /* EQProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000014 /* EQProfileTests.swift */; };
+		A00100000000000000000010 /* FrequencyResponseGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000015 /* FrequencyResponseGraph.swift */; };
+		A00100000000000000000011 /* ParametricEQEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000016 /* ParametricEQEditor.swift */; };
+		A00100000000000000000012 /* ReferenceCurveImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000017 /* ReferenceCurveImporter.swift */; };
+		A00100000000000000000013 /* ReferenceCurveImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000018 /* ReferenceCurveImporterTests.swift */; };
+		A00100000000000000000014 /* EQTextProfileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000019 /* EQTextProfileImporter.swift */; };
+		A00100000000000000000015 /* EQTextProfileImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001A /* EQTextProfileImporterTests.swift */; };
+		A00100000000000000000016 /* airpods-pro-3-jm1-10band.txt in Resources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		H00100000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C00100000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E00100000000000000000001;
+			remoteInfo = AirPodsEQSpike;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		B00100000000000000000001 /* AirPodsEQSpikeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirPodsEQSpikeApp.swift; sourceTree = "<group>"; };
+		B00100000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B00100000000000000000003 /* SpikeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeViewModel.swift; sourceTree = "<group>"; };
+		B00100000000000000000004 /* CoreAudioSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreAudioSupport.swift; sourceTree = "<group>"; };
+		B00100000000000000000005 /* AudioDeviceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceCatalog.swift; sourceTree = "<group>"; };
+		B00100000000000000000006 /* TapPassThroughEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapPassThroughEngine.swift; sourceTree = "<group>"; };
+		B00100000000000000000007 /* SpikeMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeMath.swift; sourceTree = "<group>"; };
+		B00100000000000000000008 /* RealtimeBridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = RealtimeBridge.c; sourceTree = "<group>"; };
+		B00100000000000000000009 /* RealtimeBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RealtimeBridge.h; sourceTree = "<group>"; };
+		B0010000000000000000000A /* AirPodsEQSpike-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AirPodsEQSpike-Bridging-Header.h"; sourceTree = "<group>"; };
+		B0010000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B0010000000000000000000C /* openEq.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = openEq.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0010000000000000000000D /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
+		B0010000000000000000000E /* SpikeMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeMathTests.swift; sourceTree = "<group>"; };
+		B0010000000000000000000F /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/MacOSX.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		B00100000000000000000010 /* AirPodsEQSpikeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AirPodsEQSpikeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00100000000000000000011 /* BiquadDSP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadDSP.swift; sourceTree = "<group>"; };
+		B00100000000000000000012 /* BiquadDSPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiquadDSPTests.swift; sourceTree = "<group>"; };
+		B00100000000000000000013 /* EQProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQProfile.swift; sourceTree = "<group>"; };
+		B00100000000000000000014 /* EQProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQProfileTests.swift; sourceTree = "<group>"; };
+		B00100000000000000000015 /* FrequencyResponseGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyResponseGraph.swift; sourceTree = "<group>"; };
+		B00100000000000000000016 /* ParametricEQEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParametricEQEditor.swift; sourceTree = "<group>"; };
+		B00100000000000000000017 /* ReferenceCurveImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCurveImporter.swift; sourceTree = "<group>"; };
+		B00100000000000000000018 /* ReferenceCurveImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCurveImporterTests.swift; sourceTree = "<group>"; };
+		B00100000000000000000019 /* EQTextProfileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQTextProfileImporter.swift; sourceTree = "<group>"; };
+		B0010000000000000000001A /* EQTextProfileImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQTextProfileImporterTests.swift; sourceTree = "<group>"; };
+		B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Presets/airpods-pro-3-jm1-10band.txt"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D00100000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A00100000000000000000009 /* CoreAudio.framework in Frameworks */);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D00100000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A0010000000000000000000B /* XCTest.framework in Frameworks */);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C00100000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				C00100000000000000000003 /* AirPodsEQSpike */,
+				C00100000000000000000004 /* AirPodsEQSpikeTests */,
+				C00100000000000000000005 /* Frameworks */,
+				C00100000000000000000006 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C00100000000000000000003 /* AirPodsEQSpike */ = {
+			isa = PBXGroup;
+			children = (
+				B00100000000000000000001 /* AirPodsEQSpikeApp.swift */,
+				B00100000000000000000002 /* ContentView.swift */,
+				B00100000000000000000003 /* SpikeViewModel.swift */,
+				B00100000000000000000004 /* CoreAudioSupport.swift */,
+				B00100000000000000000005 /* AudioDeviceCatalog.swift */,
+				B00100000000000000000006 /* TapPassThroughEngine.swift */,
+				B00100000000000000000007 /* SpikeMath.swift */,
+				B00100000000000000000011 /* BiquadDSP.swift */,
+				B00100000000000000000013 /* EQProfile.swift */,
+				B00100000000000000000015 /* FrequencyResponseGraph.swift */,
+				B00100000000000000000016 /* ParametricEQEditor.swift */,
+				B00100000000000000000017 /* ReferenceCurveImporter.swift */,
+				B00100000000000000000019 /* EQTextProfileImporter.swift */,
+				B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */,
+				B00100000000000000000008 /* RealtimeBridge.c */,
+				B00100000000000000000009 /* RealtimeBridge.h */,
+				B0010000000000000000000A /* AirPodsEQSpike-Bridging-Header.h */,
+				B0010000000000000000000B /* Info.plist */,
+			);
+			path = AirPodsEQSpike;
+			sourceTree = "<group>";
+		};
+		C00100000000000000000004 /* AirPodsEQSpikeTests */ = {
+			isa = PBXGroup;
+			children = (
+				B0010000000000000000000E /* SpikeMathTests.swift */,
+				B00100000000000000000012 /* BiquadDSPTests.swift */,
+				B00100000000000000000014 /* EQProfileTests.swift */,
+				B00100000000000000000018 /* ReferenceCurveImporterTests.swift */,
+				B0010000000000000000001A /* EQTextProfileImporterTests.swift */,
+			);
+			path = AirPodsEQSpikeTests;
+			sourceTree = "<group>";
+		};
+		C00100000000000000000005 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B0010000000000000000000D /* CoreAudio.framework */,
+				B0010000000000000000000F /* XCTest.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		C00100000000000000000006 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B0010000000000000000000C /* openEq.app */,
+				B00100000000000000000010 /* AirPodsEQSpikeTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E00100000000000000000001 /* AirPodsEQSpike */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = G00100000000000000000002 /* Build configuration list for PBXNativeTarget "AirPodsEQSpike" */;
+			buildPhases = (
+				D00100000000000000000002 /* Sources */,
+				D00100000000000000000001 /* Frameworks */,
+				D00100000000000000000003 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = AirPodsEQSpike;
+			productName = AirPodsEQSpike;
+			productReference = B0010000000000000000000C /* openEq.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E00100000000000000000002 /* AirPodsEQSpikeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = G00100000000000000000003 /* Build configuration list for PBXNativeTarget "AirPodsEQSpikeTests" */;
+			buildPhases = (
+				D00100000000000000000005 /* Sources */,
+				D00100000000000000000004 /* Frameworks */,
+				D00100000000000000000006 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (H00100000000000000000002 /* PBXTargetDependency */);
+			name = AirPodsEQSpikeTests;
+			productName = AirPodsEQSpikeTests;
+			productReference = B00100000000000000000010 /* AirPodsEQSpikeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C00100000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					E00100000000000000000001 = {CreatedOnToolsVersion = 16.4;};
+					E00100000000000000000002 = {CreatedOnToolsVersion = 16.4; TestTargetID = E00100000000000000000001;};
+				};
+			};
+			buildConfigurationList = G00100000000000000000001 /* Build configuration list for PBXProject "AirPodsEQSpike" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = C00100000000000000000002;
+			productRefGroup = C00100000000000000000006 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E00100000000000000000001 /* AirPodsEQSpike */,
+				E00100000000000000000002 /* AirPodsEQSpikeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D00100000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A00100000000000000000016 /* airpods-pro-3-jm1-10band.txt in Resources */); runOnlyForDeploymentPostprocessing = 0;};
+		D00100000000000000000006 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D00100000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00100000000000000000001 /* AirPodsEQSpikeApp.swift in Sources */,
+				A00100000000000000000002 /* ContentView.swift in Sources */,
+				A00100000000000000000003 /* SpikeViewModel.swift in Sources */,
+				A00100000000000000000004 /* CoreAudioSupport.swift in Sources */,
+				A00100000000000000000005 /* AudioDeviceCatalog.swift in Sources */,
+				A00100000000000000000006 /* TapPassThroughEngine.swift in Sources */,
+				A00100000000000000000007 /* SpikeMath.swift in Sources */,
+				A0010000000000000000000C /* BiquadDSP.swift in Sources */,
+				A0010000000000000000000E /* EQProfile.swift in Sources */,
+				A00100000000000000000010 /* FrequencyResponseGraph.swift in Sources */,
+				A00100000000000000000011 /* ParametricEQEditor.swift in Sources */,
+				A00100000000000000000012 /* ReferenceCurveImporter.swift in Sources */,
+				A00100000000000000000014 /* EQTextProfileImporter.swift in Sources */,
+				A00100000000000000000008 /* RealtimeBridge.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D00100000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0010000000000000000000A /* SpikeMathTests.swift in Sources */,
+				A0010000000000000000000D /* BiquadDSPTests.swift in Sources */,
+				A0010000000000000000000F /* EQProfileTests.swift in Sources */,
+				A00100000000000000000013 /* ReferenceCurveImporterTests.swift in Sources */,
+				A00100000000000000000015 /* EQTextProfileImporterTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		H00100000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E00100000000000000000001 /* AirPodsEQSpike */;
+			targetProxy = H00100000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		F00100000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_C_LANGUAGE_STANDARD = gnu17;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F00100000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_C_LANGUAGE_STANDARD = gnu17;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		F00100000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AirPodsEQSpike/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.openmaceq.openEq;
+				PRODUCT_MODULE_NAME = AirPodsEQSpike;
+				PRODUCT_NAME = openEq;
+				SWIFT_OBJC_BRIDGING_HEADER = "AirPodsEQSpike/AirPodsEQSpike-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F00100000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AirPodsEQSpike/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.openmaceq.openEq;
+				PRODUCT_MODULE_NAME = AirPodsEQSpike;
+				PRODUCT_NAME = openEq;
+				SWIFT_OBJC_BRIDGING_HEADER = "AirPodsEQSpike/AirPodsEQSpike-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F00100000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = app.openmaceq.openEq.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/openEq.app/Contents/MacOS/openEq";
+			};
+			name = Debug;
+		};
+		F00100000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = app.openmaceq.openEq.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/openEq.app/Contents/MacOS/openEq";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		G00100000000000000000001 /* Build configuration list for PBXProject "AirPodsEQSpike" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (F00100000000000000000001 /* Debug */, F00100000000000000000002 /* Release */);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		G00100000000000000000002 /* Build configuration list for PBXNativeTarget "AirPodsEQSpike" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (F00100000000000000000003 /* Debug */, F00100000000000000000004 /* Release */);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		G00100000000000000000003 /* Build configuration list for PBXNativeTarget "AirPodsEQSpikeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (F00100000000000000000005 /* Debug */, F00100000000000000000006 /* Release */);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C00100000000000000000001 /* Project object */;
+}
