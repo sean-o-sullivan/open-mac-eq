@@ -27,6 +27,97 @@ final class SpikeMathTests: XCTestCase {
         XCTAssertNil(AudioTiming.milliseconds(frames: 256, sampleRate: 0))
     }
 
+    func testBluetoothUsesSaferInitialBuffer() {
+        XCTAssertEqual(
+            AudioBufferPolicy.initialFrameSize(transportType: kAudioDeviceTransportTypeBluetooth),
+            256
+        )
+        XCTAssertEqual(
+            AudioBufferPolicy.initialFrameSize(transportType: kAudioDeviceTransportTypeBluetoothLE),
+            256
+        )
+        XCTAssertEqual(
+            AudioBufferPolicy.initialFrameSize(transportType: kAudioDeviceTransportTypeBuiltIn),
+            128
+        )
+        XCTAssertEqual(AudioBufferPolicy.recoveryFrameSize(after: 128), 256)
+        XCTAssertEqual(AudioBufferPolicy.recoveryFrameSize(after: 256), 512)
+        XCTAssertEqual(AudioBufferPolicy.recoveryFrameSize(after: 512), 512)
+    }
+
+    func testReliabilityMonitorDetectsOverloadBurst() {
+        var monitor = AudioReliabilityMonitor()
+        monitor.reset(now: 0)
+
+        XCTAssertNil(monitor.observe(
+            callbackCount: 100,
+            overloadCount: 1,
+            expectsCallbacks: true,
+            now: 1
+        ))
+        XCTAssertNil(monitor.observe(
+            callbackCount: 200,
+            overloadCount: 2,
+            expectsCallbacks: true,
+            now: 5
+        ))
+        XCTAssertEqual(monitor.observe(
+            callbackCount: 300,
+            overloadCount: 3,
+            expectsCallbacks: true,
+            now: 9
+        ), .processorOverloadBurst(count: 3))
+    }
+
+    func testReliabilityMonitorExpiresOldOverloads() {
+        var monitor = AudioReliabilityMonitor()
+        monitor.reset(now: 0)
+
+        XCTAssertNil(monitor.observe(
+            callbackCount: 100,
+            overloadCount: 2,
+            expectsCallbacks: true,
+            now: 1
+        ))
+        XCTAssertNil(monitor.observe(
+            callbackCount: 200,
+            overloadCount: 3,
+            expectsCallbacks: true,
+            now: 12
+        ))
+    }
+
+    func testReliabilityMonitorDetectsCallbackStallOnlyWhileExpected() {
+        var monitor = AudioReliabilityMonitor(callbackStallSeconds: 2)
+        monitor.reset(callbackCount: 100, now: 0)
+
+        XCTAssertNil(monitor.observe(
+            callbackCount: 100,
+            overloadCount: 0,
+            expectsCallbacks: false,
+            now: 3
+        ))
+        XCTAssertNil(monitor.observe(
+            callbackCount: 100,
+            overloadCount: 0,
+            expectsCallbacks: true,
+            now: 4
+        ))
+        XCTAssertEqual(monitor.observe(
+            callbackCount: 100,
+            overloadCount: 0,
+            expectsCallbacks: true,
+            now: 5.1
+        ), .callbackStall(seconds: 2.1))
+    }
+
+    func testAudioLevelConversion() throws {
+        XCTAssertEqual(try XCTUnwrap(AudioLevel.decibelsFS(magnitude: 1)), 0, accuracy: 0.000_001)
+        XCTAssertEqual(try XCTUnwrap(AudioLevel.decibelsFS(magnitude: 0.5)), -6.0206, accuracy: 0.0001)
+        XCTAssertNil(AudioLevel.decibelsFS(magnitude: 0))
+        XCTAssertNil(AudioLevel.decibelsFS(magnitude: .infinity))
+    }
+
     func testNanosecondsToMilliseconds() {
         XCTAssertEqual(AudioTiming.milliseconds(nanoseconds: 2_500_000), 2.5, accuracy: 0.000_001)
     }

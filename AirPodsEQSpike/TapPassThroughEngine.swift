@@ -8,9 +8,12 @@ struct PassThroughSnapshot: Equatable {
     let dspConfigurationApplyCount: UInt64
     let nonFiniteOutputCount: UInt64
     let processorOverloadCount: UInt64
+    let aboveFullScaleSampleCount: UInt64
     let timestampDeltaMilliseconds: Double
     let lastProcessingMilliseconds: Double
     let maximumProcessingMilliseconds: Double
+    let lastOutputPeakMagnitude: Double
+    let maximumOutputPeakMagnitude: Double
     let inputBufferCount: UInt32
     let outputBufferCount: UInt32
     let lastFrameCount: UInt32
@@ -24,9 +27,12 @@ struct PassThroughSnapshot: Equatable {
         dspConfigurationApplyCount: 0,
         nonFiniteOutputCount: 0,
         processorOverloadCount: 0,
+        aboveFullScaleSampleCount: 0,
         timestampDeltaMilliseconds: 0,
         lastProcessingMilliseconds: 0,
         maximumProcessingMilliseconds: 0,
+        lastOutputPeakMagnitude: 0,
+        maximumOutputPeakMagnitude: 0,
         inputBufferCount: 0,
         outputBufferCount: 0,
         lastFrameCount: 0,
@@ -68,8 +74,6 @@ struct PassThroughConfiguration {
 }
 
 final class TapPassThroughEngine {
-    private static let lowLatencyBufferFrameSize: UInt32 = 128
-
     private(set) var configuration: PassThroughConfiguration?
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
@@ -101,10 +105,27 @@ final class TapPassThroughEngine {
         isDeviceStarted
     }
 
-    func start(device: AudioDeviceDescriptor) throws -> PassThroughConfiguration {
+    var expectsCallbacks: Bool {
+        guard isDeviceStarted, aggregateID != kAudioObjectUnknown else { return false }
+        let running: UInt32? = try? CoreAudioProperty.scalar(
+            objectID: aggregateID,
+            selector: kAudioDevicePropertyDeviceIsRunningSomewhere,
+            initialValue: UInt32(0),
+            operation: "read aggregate running state"
+        )
+        return running.map { $0 != 0 } ?? false
+    }
+
+    func start(
+        device: AudioDeviceDescriptor,
+        requestedBufferFrameSize: UInt32? = nil
+    ) throws -> PassThroughConfiguration {
         stop()
         EQRealtimeDSPReset(realtimeDSP)
         EQRealtimeStatsReset(realtimeStats)
+
+        let targetBufferFrameSize = requestedBufferFrameSize
+            ?? AudioBufferPolicy.initialFrameSize(transportType: device.transportType)
 
         guard device.isDefaultOutput else {
             throw SpikeError("Select this device as the macOS default output first.")
@@ -118,7 +139,7 @@ final class TapPassThroughEngine {
             try CoreAudioProperty.setScalar(
                 objectID: device.id,
                 selector: kAudioDevicePropertyBufferFrameSize,
-                value: Self.lowLatencyBufferFrameSize,
+                value: targetBufferFrameSize,
                 operation: "request low-latency output-device buffer"
             )
 
@@ -170,13 +191,13 @@ final class TapPassThroughEngine {
             try CoreAudioProperty.setScalar(
                 objectID: aggregateID,
                 selector: kAudioDevicePropertyBufferFrameSize,
-                value: Self.lowLatencyBufferFrameSize,
+                value: targetBufferFrameSize,
                 operation: "request low-latency aggregate buffer"
             )
             try CoreAudioProperty.setScalar(
                 objectID: device.id,
                 selector: kAudioDevicePropertyBufferFrameSize,
-                value: Self.lowLatencyBufferFrameSize,
+                value: targetBufferFrameSize,
                 operation: "confirm low-latency output-device buffer"
             )
 
@@ -253,7 +274,7 @@ final class TapPassThroughEngine {
 
             let result = PassThroughConfiguration(
                 device: device.replacingBufferFrameSize(physicalBufferFrames),
-                requestedBufferFrameSize: Self.lowLatencyBufferFrameSize,
+                requestedBufferFrameSize: targetBufferFrameSize,
                 aggregateBufferFrameSize: aggregateBufferFrames,
                 tapFormat: tapFormat,
                 inputFormat: inputFormat,
@@ -346,6 +367,7 @@ final class TapPassThroughEngine {
             dspConfigurationApplyCount: raw.dspConfigurationApplyCount,
             nonFiniteOutputCount: raw.nonFiniteOutputCount,
             processorOverloadCount: raw.processorOverloadCount,
+            aboveFullScaleSampleCount: raw.aboveFullScaleSampleCount,
             timestampDeltaMilliseconds: AudioTiming.milliseconds(
                 nanoseconds: raw.lastTimestampDeltaNanos
             ),
@@ -355,6 +377,8 @@ final class TapPassThroughEngine {
             maximumProcessingMilliseconds: AudioTiming.milliseconds(
                 nanoseconds: raw.maximumProcessingNanos
             ),
+            lastOutputPeakMagnitude: raw.lastOutputPeakMagnitude,
+            maximumOutputPeakMagnitude: raw.maximumOutputPeakMagnitude,
             inputBufferCount: raw.lastInputBufferCount,
             outputBufferCount: raw.lastOutputBufferCount,
             lastFrameCount: raw.lastFrameCount,

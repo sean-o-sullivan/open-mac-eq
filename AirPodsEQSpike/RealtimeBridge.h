@@ -28,9 +28,12 @@ typedef struct {
     uint64_t dspConfigurationApplyCount;
     uint64_t nonFiniteOutputCount;
     uint64_t processorOverloadCount;
+    uint64_t aboveFullScaleSampleCount;
     uint64_t lastTimestampDeltaNanos;
     uint64_t lastProcessingNanos;
     uint64_t maximumProcessingNanos;
+    double lastOutputPeakMagnitude;
+    double maximumOutputPeakMagnitude;
     uint32_t lastInputBufferCount;
     uint32_t lastOutputBufferCount;
     uint32_t lastFrameCount;

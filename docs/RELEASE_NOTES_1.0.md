@@ -11,8 +11,8 @@ Date: 2026-07-12
 SHA-256:
 
 ```text
-6f01857c5cc40a09f617fee8da4545272226b0e138a4d19e5b74af7e17f9ef88  openEq-1.0.dmg
-c9e7bc0db22626cd08b05edfaf7936452a602d27ab08f59a78ff8f9b75ad6a0f  openEq-1.0.zip
+70cd3c7f4c026f08a3ac1891a2255fab4b3c74776bc16a61855b579f2663f47a  openEq-1.0.dmg
+afd4b4a77067013e72ab28a8a35ee205f9e678da3b1dcbead8027c3ab2060dcc  openEq-1.0.zip
 ```
 
 The app uses hardened runtime and ad-hoc signing for local use. `codesign --verify --deep --strict` passes. Public distribution requires rebuilding with a Developer ID Application certificate and submitting the result for notarization.
@@ -39,10 +39,15 @@ This is a population-average measurement correction, not a personalized hearing 
 - optional launch at login
 - optional automatic start when an exact saved output-device UID and profile are ready
 - sleep destroys the tap and fails open before wake-time state refresh
+- Bluetooth/Bluetooth LE routes start at 256 frames; other transports start at 128
+- health monitoring continues while the editor is closed
+- overload bursts and callback stalls trigger a safer-buffer route rebuild
+- repeated or failed recovery destroys the tap and restores direct audio
+- diagnostics report output peak and samples above 0 dBFS
 
 ## Verification
 
-- 28 automated tests passed; zero failed/skipped
+- 33 automated tests passed; zero failed/skipped
 - Release app compiled for arm64, macOS 14.2+
 - package signature verifies with strict/deep checks
 - installed application launches from `/Applications/openEq.app`

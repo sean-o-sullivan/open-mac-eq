@@ -44,9 +44,12 @@ struct EQRealtimeStats {
     _Atomic uint64_t dspConfigurationApplyCount;
     _Atomic uint64_t nonFiniteOutputCount;
     _Atomic uint64_t processorOverloadCount;
+    _Atomic uint64_t aboveFullScaleSampleCount;
     _Atomic uint64_t lastTimestampDeltaNanos;
     _Atomic uint64_t lastProcessingNanos;
     _Atomic uint64_t maximumProcessingNanos;
+    _Atomic uint64_t lastOutputPeakBits;
+    _Atomic uint64_t maximumOutputPeakBits;
     _Atomic uint32_t lastInputBufferCount;
     _Atomic uint32_t lastOutputBufferCount;
     _Atomic uint32_t lastFrameCount;
@@ -90,9 +93,12 @@ void EQRealtimeStatsReset(EQRealtimeStats *stats) {
     atomic_store_explicit(&stats->dspConfigurationApplyCount, 0, memory_order_relaxed);
     atomic_store_explicit(&stats->nonFiniteOutputCount, 0, memory_order_relaxed);
     atomic_store_explicit(&stats->processorOverloadCount, 0, memory_order_relaxed);
+    atomic_store_explicit(&stats->aboveFullScaleSampleCount, 0, memory_order_relaxed);
     atomic_store_explicit(&stats->lastTimestampDeltaNanos, 0, memory_order_relaxed);
     atomic_store_explicit(&stats->lastProcessingNanos, 0, memory_order_relaxed);
     atomic_store_explicit(&stats->maximumProcessingNanos, 0, memory_order_relaxed);
+    atomic_store_explicit(&stats->lastOutputPeakBits, EQDoubleBits(0.0), memory_order_relaxed);
+    atomic_store_explicit(&stats->maximumOutputPeakBits, EQDoubleBits(0.0), memory_order_relaxed);
     atomic_store_explicit(&stats->lastInputBufferCount, 0, memory_order_relaxed);
     atomic_store_explicit(&stats->lastOutputBufferCount, 0, memory_order_relaxed);
     atomic_store_explicit(&stats->lastFrameCount, 0, memory_order_relaxed);
@@ -112,9 +118,16 @@ EQRealtimeStatsSnapshot EQRealtimeStatsRead(const EQRealtimeStats *stats) {
         .dspConfigurationApplyCount = atomic_load_explicit(&stats->dspConfigurationApplyCount, memory_order_relaxed),
         .nonFiniteOutputCount = atomic_load_explicit(&stats->nonFiniteOutputCount, memory_order_relaxed),
         .processorOverloadCount = atomic_load_explicit(&stats->processorOverloadCount, memory_order_relaxed),
+        .aboveFullScaleSampleCount = atomic_load_explicit(&stats->aboveFullScaleSampleCount, memory_order_relaxed),
         .lastTimestampDeltaNanos = atomic_load_explicit(&stats->lastTimestampDeltaNanos, memory_order_relaxed),
         .lastProcessingNanos = atomic_load_explicit(&stats->lastProcessingNanos, memory_order_relaxed),
         .maximumProcessingNanos = atomic_load_explicit(&stats->maximumProcessingNanos, memory_order_relaxed),
+        .lastOutputPeakMagnitude = EQDoubleFromBits(
+            atomic_load_explicit(&stats->lastOutputPeakBits, memory_order_relaxed)
+        ),
+        .maximumOutputPeakMagnitude = EQDoubleFromBits(
+            atomic_load_explicit(&stats->maximumOutputPeakBits, memory_order_relaxed)
+        ),
         .lastInputBufferCount = atomic_load_explicit(&stats->lastInputBufferCount, memory_order_relaxed),
         .lastOutputBufferCount = atomic_load_explicit(&stats->lastOutputBufferCount, memory_order_relaxed),
         .lastFrameCount = atomic_load_explicit(&stats->lastFrameCount, memory_order_relaxed),
@@ -387,10 +400,13 @@ void EQRealtimeProcess(
         return;
     }
     uint64_t processingStart = AudioGetCurrentHostTime();
+    double outputPeakMagnitude = 0.0;
+    uint64_t aboveFullScaleSampleCount = 0;
 
     atomic_fetch_add_explicit(&stats->callbackCount, 1, memory_order_relaxed);
     atomic_store_explicit(&stats->lastInputBufferCount, inputData->mNumberBuffers, memory_order_relaxed);
     atomic_store_explicit(&stats->lastOutputBufferCount, outputData->mNumberBuffers, memory_order_relaxed);
+    atomic_store_explicit(&stats->lastOutputPeakBits, EQDoubleBits(0.0), memory_order_relaxed);
 
     for (uint32_t index = 0; index < outputData->mNumberBuffers; ++index) {
         AudioBuffer *buffer = &outputData->mBuffers[index];
@@ -450,6 +466,13 @@ void EQRealtimeProcess(
 
             if (isfinite(sample)) {
                 *output = (float)sample;
+                double magnitude = fabs(sample);
+                outputPeakMagnitude = magnitude > outputPeakMagnitude
+                    ? magnitude
+                    : outputPeakMagnitude;
+                if (magnitude > 1.0) {
+                    ++aboveFullScaleSampleCount;
+                }
             } else {
                 *output = 0.0f;
                 atomic_fetch_add_explicit(&stats->nonFiniteOutputCount, 1, memory_order_relaxed);
@@ -466,6 +489,14 @@ void EQRealtimeProcess(
     }
 
     atomic_fetch_add_explicit(&stats->frameCount, frames, memory_order_relaxed);
+    atomic_fetch_add_explicit(
+        &stats->aboveFullScaleSampleCount,
+        aboveFullScaleSampleCount,
+        memory_order_relaxed
+    );
+    uint64_t outputPeakBits = EQDoubleBits(outputPeakMagnitude);
+    atomic_store_explicit(&stats->lastOutputPeakBits, outputPeakBits, memory_order_relaxed);
+    EQStoreMaximum(&stats->maximumOutputPeakBits, outputPeakBits);
     atomic_store_explicit(&stats->lastFrameCount, frames, memory_order_relaxed);
     if (dsp != NULL) {
         uint32_t displayedBank = dsp->crossfadeFramesRemaining > 0
@@ -557,7 +588,10 @@ bool EQRealtimeBridgeSelfTest(void) {
     return interleaved[0] == 1.0f && interleaved[1] == 10.0f &&
         interleaved[2] == 2.0f && interleaved[3] == 20.0f &&
         snapshot.callbackCount == 1 && snapshot.frameCount == 2 &&
-        snapshot.formatMismatchCount == 0;
+        snapshot.formatMismatchCount == 0 &&
+        snapshot.aboveFullScaleSampleCount == 3 &&
+        snapshot.lastOutputPeakMagnitude == 20.0 &&
+        snapshot.maximumOutputPeakMagnitude == 20.0;
 }
 
 bool EQRealtimeDSPImpulseSelfTest(void) {

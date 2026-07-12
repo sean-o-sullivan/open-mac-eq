@@ -238,6 +238,15 @@ struct ContentView: View {
                         )
                     )
                     detailRow("Processor overloads", "\(model.snapshot.processorOverloadCount)")
+                    detailRow(
+                        "Output peak (last / max)",
+                        "\(peakLabel(model.snapshot.lastOutputPeakMagnitude)) / " +
+                        peakLabel(model.snapshot.maximumOutputPeakMagnitude)
+                    )
+                    detailRow(
+                        "Samples above 0 dBFS",
+                        "\(model.snapshot.aboveFullScaleSampleCount)"
+                    )
                     detailRow("Non-finite outputs", "\(model.snapshot.nonFiniteOutputCount)")
                     detailRow("Format mismatches", "\(model.snapshot.formatMismatchCount)")
                 }
@@ -258,12 +267,13 @@ struct ContentView: View {
             .padding(20)
         }
         .frame(minWidth: 800, minHeight: 1_080)
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(500))
-                model.poll()
-            }
+    }
+
+    private func peakLabel(_ magnitude: Double) -> String {
+        guard let decibels = AudioLevel.decibelsFS(magnitude: magnitude) else {
+            return "−∞ dBFS"
         }
+        return String(format: "%+.1f dBFS", decibels)
     }
 
     private func deviceLabel(_ device: AudioDeviceDescriptor) -> String {

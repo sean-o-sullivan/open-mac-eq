@@ -61,6 +61,10 @@ final class SpikeViewModel: ObservableObject {
     private var runningSampleRate: Double?
     private var lastObservedDefaultOutputUID: String?
     private var workspaceObservers: [NSObjectProtocol] = []
+    private var monitoringTimer: Timer?
+    private var reliabilityMonitor = AudioReliabilityMonitor()
+    private var recentRecoveryTimes: [TimeInterval] = []
+    private var isRecovering = false
 
     init() {
         engine = TapPassThroughEngine()
@@ -87,9 +91,11 @@ final class SpikeViewModel: ObservableObject {
             }
         }
         installWorkspaceObservers()
+        installMonitoringTimer()
     }
 
     deinit {
+        monitoringTimer?.invalidate()
         for observer in workspaceObservers {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
@@ -175,6 +181,12 @@ final class SpikeViewModel: ObservableObject {
             isRunning = true
             status = "DSP active. Play audio and adjust the validation controls."
             snapshot = engine.snapshot()
+            reliabilityMonitor.reset(
+                callbackCount: snapshot.callbackCount,
+                overloadCount: snapshot.processorOverloadCount,
+                now: ProcessInfo.processInfo.systemUptime
+            )
+            recentRecoveryTimes.removeAll(keepingCapacity: true)
             appendLog("Started fail-open real-time DSP path.")
             configuration.diagnosticLines.forEach(appendLog)
         } catch {
@@ -189,9 +201,7 @@ final class SpikeViewModel: ObservableObject {
     }
 
     func poll() {
-        if isRunning, let engine {
-            snapshot = engine.snapshot()
-        }
+        if isRunning, let engine { snapshot = engine.snapshot() }
 
         do {
             let updated = try AudioDeviceCatalog.outputDevices()
@@ -216,6 +226,17 @@ final class SpikeViewModel: ObservableObject {
             }
             if let runningSampleRate, abs(current.sampleRate - runningSampleRate) >= 0.5 {
                 stop(reason: "Device sample rate changed; stopped for a safe rebuild.")
+                return
+            }
+
+            if let engine,
+               let trigger = reliabilityMonitor.observe(
+                   callbackCount: snapshot.callbackCount,
+                   overloadCount: snapshot.processorOverloadCount,
+                   expectsCallbacks: engine.expectsCallbacks,
+                   now: ProcessInfo.processInfo.systemUptime
+               ) {
+                recoverAudioPath(trigger: trigger)
             }
         } catch {
             if isRunning {
@@ -530,11 +551,70 @@ final class SpikeViewModel: ObservableObject {
         isRunning = false
         runningDeviceUID = nil
         runningSampleRate = nil
+        reliabilityMonitor.reset(now: ProcessInfo.processInfo.systemUptime)
+        recentRecoveryTimes.removeAll(keepingCapacity: true)
         if let reason {
             status = reason
             appendLog(reason)
         }
         refreshDevices()
+    }
+
+    private func recoverAudioPath(trigger: AudioRecoveryTrigger) {
+        guard !isRecovering, isRunning, let engine, let runningDeviceUID else { return }
+        isRecovering = true
+        defer { isRecovering = false }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        recentRecoveryTimes.removeAll { now - $0 > 60 }
+        guard recentRecoveryTimes.count < 2 else {
+            stop(reason: "Repeated audio-route failures; EQ stopped and direct audio was restored.")
+            return
+        }
+        recentRecoveryTimes.append(now)
+
+        let previousFrameSize = engine.configuration?.requestedBufferFrameSize
+            ?? AudioBufferPolicy.lowLatencyFrameSize
+        let recoveryFrameSize = AudioBufferPolicy.recoveryFrameSize(after: previousFrameSize)
+        status = "Recovering audio route at \(recoveryFrameSize) frames…"
+        appendLog("\(trigger.description); rebuilding at \(recoveryFrameSize) frames.")
+
+        engine.stop()
+        do {
+            let refreshed = try AudioDeviceCatalog.outputDevices()
+            devices = refreshed
+            guard let device = refreshed.first(where: { $0.uid == runningDeviceUID }),
+                  OutputDevicePolicy.isProcessable(device) else {
+                throw SpikeError("The selected output is no longer available as the default device.")
+            }
+
+            try configureDSP(sampleRate: device.sampleRate)
+            let configuration = try engine.start(
+                device: device,
+                requestedBufferFrameSize: recoveryFrameSize
+            )
+            runningSampleRate = device.sampleRate
+            snapshot = engine.snapshot()
+            reliabilityMonitor.reset(
+                callbackCount: snapshot.callbackCount,
+                overloadCount: snapshot.processorOverloadCount,
+                now: ProcessInfo.processInfo.systemUptime
+            )
+            status = "DSP recovered at \(configuration.aggregateBufferFrameSize) frames."
+            appendLog(status)
+        } catch {
+            stop(reason: "Audio recovery failed; EQ stopped and direct audio was restored: \(error.localizedDescription)")
+        }
+    }
+
+    private func installMonitoringTimer() {
+        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.poll()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        monitoringTimer = timer
     }
 
     private func appendLog(_ message: String) {

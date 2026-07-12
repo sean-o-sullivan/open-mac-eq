@@ -29,6 +29,8 @@ openEq uses a device-specific Core Audio process tap and a private aggregate dev
 - Ask, always-apply, or never-apply connection behavior
 - Menu-bar-only background operation
 - Optional launch at login and automatic EQ start
+- Transport-aware buffers with automatic overload/stall recovery
+- Live output-peak and above-0-dBFS diagnostics
 - No telemetry, analytics, network client, microphone access, or cloud account
 
 ## Requirements
@@ -89,13 +91,15 @@ The render callback uses fixed-capacity storage, atomic coefficient publication,
 
 ## Validation
 
-On the development AirPods route at 48 kHz:
+On the development AirPods route at 48 kHz, the initial latency validation measured:
 
 - 128-frame Core Audio buffers
 - 5.333 ms measured tap-to-output timestamp delta
 - 0.011 ms typical / 0.024 ms observed maximum callback DSP time with 10 active bands
 - zero non-finite outputs and format mismatches during the captured run
-- 28 automated tests covering device eligibility, filter goldens, stability, cascade behavior, real-time bridging, crossfades, profile storage/import, reference curves, and legacy profile migration
+- 33 automated tests covering device eligibility, buffer policy, recovery monitoring, filter goldens, stability, cascade behavior, real-time bridging, crossfades, profile storage/import, reference curves, and legacy profile migration
+
+A longer Bluetooth soak later exposed intermittent Core Audio overloads at 128 frames despite ample DSP headroom. The current build therefore starts Bluetooth/Bluetooth LE outputs at 256 frames, keeps 128 frames for other transports, watches health while the editor is closed, and rebuilds at up to 512 frames after an overload burst or callback stall. If recovery fails or the route remains unstable, openEq destroys the tap and restores direct audio.
 
 AirPods reported roughly 160 ms of their own Bluetooth/device latency on that system. That baseline is separate from openEq's measured route overhead. Results vary by Mac, AirPods model, radio conditions, and macOS version.
 

@@ -1,5 +1,7 @@
 # Core Audio tap hardware-spike results
 
+> Reliability follow-up, 2026-07-12: the clean 128-frame validation below was reproducible, but a later 33-minute Bluetooth soak recorded 19 intermittent Core Audio overloads. The product now defaults Bluetooth routes to 256 frames, retains 128 frames for non-Bluetooth outputs, monitors callback progress in menu-bar-only mode, and can rebuild at 512 frames or fail open to direct audio. The original spike evidence remains below for traceability.
+
 Date: 2026-07-11
 
 ## Test system

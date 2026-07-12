@@ -1,5 +1,7 @@
 # Parametric EQ DSP core results
 
+> Reliability follow-up, 2026-07-12: a later long Bluetooth soak exposed intermittent Core Audio overloads at 128 frames even though DSP execution remained far below its deadline. The current product uses 256 frames for Bluetooth, 128 for other transports, and automatic overload/stall recovery. The original DSP validation below remains useful evidence that filter cost was not the bottleneck.
+
 Date: 2026-07-11
 
 ## Scope
