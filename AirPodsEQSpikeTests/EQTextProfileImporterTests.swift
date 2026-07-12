@@ -3,33 +3,71 @@ import XCTest
 
 final class EQTextProfileImporterTests: XCTestCase {
     private let suppliedProfile = """
-    Preamp: -3.8 dB
-    Filter 1:  ON PK Fc    38 Hz Gain -2.5 dB Q 0.60
-    Filter 2:  ON PK Fc   143 Hz Gain +4.1 dB Q 1.25
-    Filter 3:  ON PK Fc   479 Hz Gain +0.8 dB Q 0.90
-    Filter 4:  ON PK Fc   973 Hz Gain -1.3 dB Q 2.85
-    Filter 5:  ON PK Fc  1299 Hz Gain +0.9 dB Q 4.05
-    Filter 6:  ON PK Fc  1522 Hz Gain +1.1 dB Q 4.10
-    Filter 7:  ON PK Fc  3320 Hz Gain +3.7 dB Q 2.95
-    Filter 8:  ON PK Fc  4064 Hz Gain +1.7 dB Q 3.65
-    Filter 9:  ON PK Fc  5915 Hz Gain -5.8 dB Q 2.30
-    Filter 10: ON PK Fc  7671 Hz Gain -1.9 dB Q 2.10
+    Preamp: -3.9 dB
+    Filter 1: ON PK Fc 40 Hz Gain -2.3 dB Q 0.70
+    Filter 2: ON PK Fc 151 Hz Gain +3.7 dB Q 1.41
+    Filter 3: ON PK Fc 3417 Hz Gain +3.9 dB Q 3.00
+    Filter 4: ON PK Fc 4305 Hz Gain +1.5 dB Q 2.00
+    Filter 5: ON PK Fc 5747 Hz Gain -6.4 dB Q 3.00
+    Filter 6: ON PK Fc 7671 Hz Gain -2.9 dB Q 1.41
     """
 
-    func testImportsSuppliedTenBandProfileExactly() throws {
+    func testImportsSuppliedSongbirdSixBandProfileExactly() throws {
         let profile = try EQTextProfileImporter.decode(
             text: suppliedProfile,
-            name: "AirPods Pro 3 — JM-1",
+            name: "AirPods Pro 3 — Songbird JM-1",
             deviceUID: "airpods-uid"
         )
 
-        XCTAssertEqual(profile.preampDb, -3.8)
-        XCTAssertEqual(profile.bands.count, 10)
-        XCTAssertEqual(profile.bands.map(\.type), Array(repeating: .peaking, count: 10))
-        XCTAssertEqual(profile.bands.map(\.frequencyHz), [38, 143, 479, 973, 1_299, 1_522, 3_320, 4_064, 5_915, 7_671])
-        XCTAssertEqual(profile.bands.map(\.gainDb), [-2.5, 4.1, 0.8, -1.3, 0.9, 1.1, 3.7, 1.7, -5.8, -1.9])
-        XCTAssertEqual(profile.bands.map(\.q), [0.6, 1.25, 0.9, 2.85, 4.05, 4.1, 2.95, 3.65, 2.3, 2.1])
-        XCTAssertTrue(profile.bands.allSatisfy(\.enabled))
+        assertSongbirdProfile(profile)
+    }
+
+    func testBundledSongbirdSixBandProfileMatchesPublishedValues() throws {
+        let url = try XCTUnwrap(Bundle.main.url(
+            forResource: "airpods-pro-3-songbird-jm1-6band",
+            withExtension: "txt"
+        ))
+        let profile = try EQTextProfileImporter.decode(
+            data: Data(contentsOf: url),
+            name: "AirPods Pro 3 — Songbird JM-1",
+            deviceUID: "airpods-uid"
+        )
+
+        assertSongbirdProfile(profile)
+    }
+
+    private func assertSongbirdProfile(
+        _ profile: EQProfile,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(profile.preampDb, -3.9, file: file, line: line)
+        XCTAssertEqual(profile.bands.count, 6, file: file, line: line)
+        XCTAssertEqual(
+            profile.bands.map(\.type),
+            Array(repeating: .peaking, count: 6),
+            file: file,
+            line: line
+        )
+        XCTAssertEqual(
+            profile.bands.map(\.frequencyHz),
+            [40, 151, 3_417, 4_305, 5_747, 7_671],
+            file: file,
+            line: line
+        )
+        XCTAssertEqual(
+            profile.bands.map(\.gainDb),
+            [-2.3, 3.7, 3.9, 1.5, -6.4, -2.9],
+            file: file,
+            line: line
+        )
+        XCTAssertEqual(
+            profile.bands.map(\.q),
+            [0.7, 1.41, 3, 2, 3, 1.41],
+            file: file,
+            line: line
+        )
+        XCTAssertTrue(profile.bands.allSatisfy(\.enabled), file: file, line: line)
     }
 
     func testImportsSupportedTypesDisabledStateAndDefaults() throws {

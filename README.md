@@ -60,14 +60,16 @@ Menu actions are deliberately simple:
 
 ## Included preset
 
-The app bundles an **AirPods Pro 3 — JM-1 10-band** preset with `-3.8 dB` preamp and ten peaking filters. That preset is specifically for AirPods Pro 3 with ANC enabled. It is based on a population-average measurement correction, not personalized hearing data. It should not be used unchanged with other headphones. Fit, seal, firmware, volume, and individual anatomy can change the ideal correction.
+The app bundles an **AirPods Pro 3 — Songbird JM-1 6-band** preset with `-3.9 dB` preamp and six peaking filters. It is the Songbird AutoEQ result for its AirPods Pro 3 L/R-average measurement against the `JM-1 -10 dB Tilt` target. Songbird's source page does not explicitly document the measurement listening mode, so openEq does not label the preset as ANC-specific. It is a measurement-based baseline, not personalized hearing correction, and should not be used unchanged with other headphones. Fit, seal, firmware, volume, and individual anatomy can change the ideal correction.
+
+On upgrade, saved profiles that still exactly match the former bundled ten-band preset are migrated to this six-band baseline. Any profile with a changed band, preamp, enabled state, filter type, or reference curve is treated as customized and left untouched.
 
 Profiles can also be pasted in this form:
 
 ```text
-Preamp: -3.8 dB
-Filter 1: ON PK Fc 38 Hz Gain -2.5 dB Q 0.60
-Filter 2: ON PK Fc 143 Hz Gain +4.1 dB Q 1.25
+Preamp: -3.9 dB
+Filter 1: ON PK Fc 40 Hz Gain -2.3 dB Q 0.70
+Filter 2: ON PK Fc 151 Hz Gain +3.7 dB Q 1.41
 ```
 
 ## Architecture
@@ -97,7 +99,7 @@ On the development AirPods route at 48 kHz, the initial latency validation measu
 - 5.333 ms measured tap-to-output timestamp delta
 - 0.011 ms typical / 0.024 ms observed maximum callback DSP time with 10 active bands
 - zero non-finite outputs and format mismatches during the captured run
-- 33 automated tests covering device eligibility, buffer policy, recovery monitoring, filter goldens, stability, cascade behavior, real-time bridging, crossfades, profile storage/import, reference curves, and legacy profile migration
+- 35 automated tests covering device eligibility, buffer policy, recovery monitoring, bundled-preset values and migration, filter goldens, stability, cascade behavior, real-time bridging, crossfades, profile storage/import, reference curves, and legacy profile migration
 
 A longer Bluetooth soak later exposed intermittent Core Audio overloads at 128 frames despite ample DSP headroom. The current build therefore starts Bluetooth/Bluetooth LE outputs at 256 frames, keeps 128 frames for other transports, watches health while the editor is closed, and rebuilds at up to 512 frames after an overload burst or callback stall. If recovery fails or the route remains unstable, openEq destroys the tap and restores direct audio.
 

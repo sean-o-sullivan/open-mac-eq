@@ -97,8 +97,8 @@ struct ContentView: View {
                         Button("New profile") {
                             model.createNewProfile()
                         }
-                        Button("Load AirPods Pro 3 ANC preset") {
-                            model.loadBuiltInJM1Profile()
+                        Button("Load Songbird JM-1 preset") {
+                            model.loadBuiltInSongbirdJM1Profile()
                         }
                         if model.activeProfile == nil {
                             Button("Save current peak") {

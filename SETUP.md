@@ -62,7 +62,7 @@ Closing the editor window leaves processing active. Choose **Close EQ** to destr
 
 Options:
 
-- Click **Load AirPods Pro 3 ANC preset** for the bundled AirPods Pro 3 correction.
+- Click **Load Songbird JM-1 preset** for the bundled AirPods Pro 3 correction baseline.
 - Use **Profile I/O → Paste EQ text**.
 - Import a `.txt` Equalizer APO-style profile.
 - Import a versioned openEq `.json` profile.

@@ -114,6 +114,58 @@ final class EQProfileTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
     }
 
+    func testLegacyBundledPresetMigrationOnlyReplacesExactCopies() throws {
+        let frequencies: [Double] = [
+            38, 143, 479, 973, 1_299, 1_522, 3_320, 4_064, 5_915, 7_671,
+        ]
+        let gains: [Double] = [
+            -2.5, 4.1, 0.8, -1.3, 0.9, 1.1, 3.7, 1.7, -5.8, -1.9,
+        ]
+        let qualities: [Double] = [
+            0.6, 1.25, 0.9, 2.85, 4.05, 4.1, 2.95, 3.65, 2.3, 2.1,
+        ]
+        let originalID = UUID()
+        let legacy = EQProfile(
+            id: originalID,
+            name: "Renamed legacy copy",
+            deviceUID: "device-a",
+            preampDb: -3.8,
+            bands: frequencies.indices.map { index in
+                EQBand(
+                    type: .peaking,
+                    frequencyHz: frequencies[index],
+                    gainDb: gains[index],
+                    q: qualities[index]
+                )
+            }
+        )
+        let replacement = EQProfile(
+            name: "AirPods Pro 3 — Songbird JM-1 6-band",
+            deviceUID: "template-device",
+            preampDb: -3.9,
+            bands: [EQBand(frequencyHz: 40, gainDb: -2.3, q: 0.7)]
+        )
+
+        let migrated = try XCTUnwrap(
+            LegacyBundledPresetMigration.replacingExactLegacyPreset(
+                legacy,
+                with: replacement
+            )
+        )
+        XCTAssertEqual(migrated.id, originalID)
+        XCTAssertEqual(migrated.deviceUID, "device-a")
+        XCTAssertEqual(migrated.name, replacement.name)
+        XCTAssertEqual(migrated.preampDb, -3.9)
+        XCTAssertEqual(migrated.bands, replacement.bands)
+
+        var customized = legacy
+        customized.bands[0].gainDb = -2.4
+        XCTAssertNil(LegacyBundledPresetMigration.replacingExactLegacyPreset(
+            customized,
+            with: replacement
+        ))
+    }
+
     func testValidationRejectsMalformedCurveAndDuplicateBandIDs() throws {
         let duplicateID = UUID()
         var profile = sampleProfile()

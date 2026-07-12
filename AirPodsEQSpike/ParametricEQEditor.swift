@@ -33,7 +33,9 @@ struct ParametricEQEditor: View {
                     Menu("Profile I/O") {
                         Button("Paste EQ text…") { isShowingProfilePaste = true }
                         Button("Import text or JSON…") { isImportingProfile = true }
-                        Button("Load AirPods Pro 3 ANC/JM-1 preset") { model.loadBuiltInJM1Profile() }
+                        Button("Load Songbird JM-1 preset") {
+                            model.loadBuiltInSongbirdJM1Profile()
+                        }
                         Divider()
                         Button("Export JSON…") { model.exportActiveProfileJSON() }
                     }

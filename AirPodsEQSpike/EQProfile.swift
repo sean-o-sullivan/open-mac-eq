@@ -201,6 +201,35 @@ enum EQProfileCodec {
     }
 }
 
+enum LegacyBundledPresetMigration {
+    static func replacingExactLegacyPreset(
+        _ profile: EQProfile,
+        with replacement: EQProfile
+    ) -> EQProfile? {
+        guard isExactLegacyPreset(profile) else { return nil }
+        var migrated = replacement
+        migrated.id = profile.id
+        migrated.deviceUID = profile.deviceUID
+        return migrated
+    }
+
+    private static func isExactLegacyPreset(_ profile: EQProfile) -> Bool {
+        profile.preampDb == -3.8 &&
+        profile.referenceCurve == nil &&
+        profile.bands.count == 10 &&
+        profile.bands.allSatisfy { $0.enabled && $0.type == .peaking } &&
+        profile.bands.map(\.frequencyHz) == [
+            38, 143, 479, 973, 1_299, 1_522, 3_320, 4_064, 5_915, 7_671,
+        ] &&
+        profile.bands.map(\.gainDb) == [
+            -2.5, 4.1, 0.8, -1.3, 0.9, 1.1, 3.7, 1.7, -5.8, -1.9,
+        ] &&
+        profile.bands.map(\.q) == [
+            0.6, 1.25, 0.9, 2.85, 4.05, 4.1, 2.95, 3.65, 2.3, 2.1,
+        ]
+    }
+}
+
 enum OpenEqApplicationSupport {
     static func directory(
         in baseDirectory: URL,

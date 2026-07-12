@@ -11,8 +11,8 @@ Date: 2026-07-12
 SHA-256:
 
 ```text
-70cd3c7f4c026f08a3ac1891a2255fab4b3c74776bc16a61855b579f2663f47a  openEq-1.0.dmg
-afd4b4a77067013e72ab28a8a35ee205f9e678da3b1dcbead8027c3ab2060dcc  openEq-1.0.zip
+0debe34258963e1dd7051a841d8871d17ae074d30992f875217dbe2de27f6f32  openEq-1.0.dmg
+8ad29b2a4b224ab92f1dd8d56f43333f63eb9042ea6d99442f45b64d0dadb34b  openEq-1.0.zip
 ```
 
 The app uses hardened runtime and ad-hoc signing for local use. `codesign --verify --deep --strict` passes. Public distribution requires rebuilding with a Developer ID Application certificate and submitting the result for notarization.
@@ -21,13 +21,15 @@ The source and binary package are distributed under the MIT License. The license
 
 ## Included profile
 
-**AirPods Pro 3 — JM-1 10-band**
+**AirPods Pro 3 — Songbird JM-1 6-band**
 
-- intended for AirPods Pro 3 with ANC enabled
-- preamp: -3.8 dB
-- ten RBJ peaking filters
+- Songbird AutoEQ result for its AirPods Pro 3 L/R average against `JM-1 -10 dB Tilt`
+- source measurement listening mode is not explicitly documented
+- preamp: -3.9 dB
+- six RBJ peaking filters
 - source file bundled inside the app
 - exact preamp/frequency/gain/Q import verified by automated test
+- exact saved copies of the former bundled ten-band preset migrate automatically; customized profiles do not
 
 This is a population-average measurement correction, not a personalized hearing profile.
 
@@ -47,7 +49,7 @@ This is a population-average measurement correction, not a personalized hearing 
 
 ## Verification
 
-- 33 automated tests passed; zero failed/skipped
+- 35 automated tests passed; zero failed/skipped
 - Release app compiled for arm64, macOS 14.2+
 - package signature verifies with strict/deep checks
 - installed application launches from `/Applications/openEq.app`

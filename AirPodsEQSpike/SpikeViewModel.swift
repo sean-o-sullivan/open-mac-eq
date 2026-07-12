@@ -74,6 +74,7 @@ final class SpikeViewModel: ObservableObject {
             status = "Could not allocate real-time diagnostics."
             appendLog(status)
         }
+        migrateLegacyBundledProfiles()
         reloadProfiles()
         refreshDevices()
         publishDSPConfiguration()
@@ -326,19 +327,9 @@ final class SpikeViewModel: ObservableObject {
         }
     }
 
-    func loadBuiltInJM1Profile() {
+    func loadBuiltInSongbirdJM1Profile() {
         do {
-            guard let url = Bundle.main.url(
-                forResource: "airpods-pro-3-jm1-10band",
-                withExtension: "txt"
-            ) else {
-                throw SpikeError("Built-in JM-1 preset resource is missing.")
-            }
-            try activateImportedProfile(EQTextProfileImporter.decode(
-                data: Data(contentsOf: url),
-                name: "AirPods Pro 3 — JM-1 10-band",
-                deviceUID: selectedUID
-            ))
+            try activateImportedProfile(bundledSongbirdProfile(deviceUID: selectedUID))
         } catch {
             status = "Built-in profile failed to load: \(error.localizedDescription)"
             appendLog(status)
@@ -703,6 +694,46 @@ final class SpikeViewModel: ObservableObject {
             status = "Profile library failed to load: \(error.localizedDescription)"
             appendLog(status)
         }
+    }
+
+    private func migrateLegacyBundledProfiles() {
+        guard let profileStore else { return }
+        do {
+            var migratedCount = 0
+            for profile in try profileStore.loadAll() {
+                let replacement = try bundledSongbirdProfile(deviceUID: profile.deviceUID)
+                guard let migrated = LegacyBundledPresetMigration.replacingExactLegacyPreset(
+                    profile,
+                    with: replacement
+                ) else { continue }
+                _ = try profileStore.save(migrated)
+                migratedCount += 1
+            }
+            if migratedCount > 0 {
+                let noun = migratedCount == 1 ? "copy" : "copies"
+                appendLog(
+                    "Replaced \(migratedCount) exact legacy built-in preset \(noun) " +
+                    "with the Songbird six-band baseline."
+                )
+            }
+        } catch {
+            status = "Built-in profile migration failed: \(error.localizedDescription)"
+            appendLog(status)
+        }
+    }
+
+    private func bundledSongbirdProfile(deviceUID: String) throws -> EQProfile {
+        guard let url = Bundle.main.url(
+            forResource: "airpods-pro-3-songbird-jm1-6band",
+            withExtension: "txt"
+        ) else {
+            throw SpikeError("Built-in Songbird JM-1 preset resource is missing.")
+        }
+        return try EQTextProfileImporter.decode(
+            data: Data(contentsOf: url),
+            name: "AirPods Pro 3 — Songbird JM-1 6-band",
+            deviceUID: deviceUID
+        )
     }
 
     private func activateProfile(_ profile: EQProfile, rememberForDevice: Bool) throws {

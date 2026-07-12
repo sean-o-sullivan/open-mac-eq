@@ -48,7 +48,7 @@ The SwiftUI editor supports:
 - live coefficient publication using the tested dual-bank crossfade
 - paste/import of Equalizer APO-style text profiles
 - JSON import/export
-- bundled AirPods Pro 3 JM-1 10-band preset
+- bundled AirPods Pro 3 Songbird JM-1 six-band preset
 
 ## Reference curves
 

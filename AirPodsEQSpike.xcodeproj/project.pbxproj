@@ -27,7 +27,7 @@
 		A00100000000000000000013 /* ReferenceCurveImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000018 /* ReferenceCurveImporterTests.swift */; };
 		A00100000000000000000014 /* EQTextProfileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000019 /* EQTextProfileImporter.swift */; };
 		A00100000000000000000015 /* EQTextProfileImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001A /* EQTextProfileImporterTests.swift */; };
-		A00100000000000000000016 /* airpods-pro-3-jm1-10band.txt in Resources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */; };
+		A00100000000000000000016 /* airpods-pro-3-songbird-jm1-6band.txt in Resources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001B /* airpods-pro-3-songbird-jm1-6band.txt */; };
 		A00100000000000000000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001C /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -68,7 +68,7 @@
 		B00100000000000000000018 /* ReferenceCurveImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCurveImporterTests.swift; sourceTree = "<group>"; };
 		B00100000000000000000019 /* EQTextProfileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQTextProfileImporter.swift; sourceTree = "<group>"; };
 		B0010000000000000000001A /* EQTextProfileImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQTextProfileImporterTests.swift; sourceTree = "<group>"; };
-		B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Presets/airpods-pro-3-jm1-10band.txt"; sourceTree = "<group>"; };
+		B0010000000000000000001B /* airpods-pro-3-songbird-jm1-6band.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Presets/airpods-pro-3-songbird-jm1-6band.txt"; sourceTree = "<group>"; };
 		B0010000000000000000001C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -114,7 +114,7 @@
 				B00100000000000000000016 /* ParametricEQEditor.swift */,
 				B00100000000000000000017 /* ReferenceCurveImporter.swift */,
 				B00100000000000000000019 /* EQTextProfileImporter.swift */,
-				B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */,
+				B0010000000000000000001B /* airpods-pro-3-songbird-jm1-6band.txt */,
 				B0010000000000000000001C /* Assets.xcassets */,
 				B00100000000000000000008 /* RealtimeBridge.c */,
 				B00100000000000000000009 /* RealtimeBridge.h */,
@@ -222,7 +222,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A00100000000000000000016 /* airpods-pro-3-jm1-10band.txt in Resources */,
+				A00100000000000000000016 /* airpods-pro-3-songbird-jm1-6band.txt in Resources */,
 				A00100000000000000000017 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -1,0 +1,14 @@
+# AirPods Pro 3
+# Target: JM-1 -10 dB Tilt
+# Source: Songbird Rocks AutoEQ from its AirPods Pro 3 L+R average measurement
+# Source page: https://songbird.rocks/catalog/apple-airpods-pro-3
+# Measurement listening mode is not documented on the source page
+# Retrieved: 2026-07-12
+
+Preamp: -3.9 dB
+Filter 1: ON PK Fc 40 Hz Gain -2.3 dB Q 0.70
+Filter 2: ON PK Fc 151 Hz Gain +3.7 dB Q 1.41
+Filter 3: ON PK Fc 3417 Hz Gain +3.9 dB Q 3.00
+Filter 4: ON PK Fc 4305 Hz Gain +1.5 dB Q 2.00
+Filter 5: ON PK Fc 5747 Hz Gain -6.4 dB Q 3.00
+Filter 6: ON PK Fc 7671 Hz Gain -2.9 dB Q 1.41
