@@ -19,7 +19,7 @@ A device association contains the Core Audio device UID and the selected profile
 ## Fail-open behavior
 
 - The direct route is muted only while the process tap is actively consumed.
-- Closing EQ, changing output, disconnecting AirPods, changing sample rate, sleeping, or quitting destroys the tap.
+- Closing EQ, changing or disconnecting the output device, changing sample rate, sleeping, or quitting destroys the tap.
 - A second app instance is prevented from starting a competing global tap.
 - Invalid, unstable, or non-finite filter configurations are rejected.
 

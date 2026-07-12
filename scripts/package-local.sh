@@ -10,7 +10,10 @@ APP_SOURCE="$DERIVED/Build/Products/Release/openEq.app"
 APP_DESTINATION="$DIST/openEq.app"
 DMG="$DIST/openEq-1.0.dmg"
 ZIP="$DIST/openEq-1.0.zip"
+LICENSE_SOURCE="$ROOT/LICENSE"
 SIGN_IDENTITY="${DEVELOPER_ID_APPLICATION:--}"
+
+[[ -f "$LICENSE_SOURCE" ]] || { print -u2 "Missing LICENSE"; exit 1; }
 
 /bin/rm -rf "$DERIVED" "$STAGE" "$APP_DESTINATION" "$DMG" "$ZIP"
 /bin/mkdir -p "$DIST" "$STAGE"
@@ -25,6 +28,8 @@ SIGN_IDENTITY="${DEVELOPER_ID_APPLICATION:--}"
   CODE_SIGNING_ALLOWED=NO \
   build
 
+/bin/cp "$LICENSE_SOURCE" "$APP_SOURCE/Contents/Resources/LICENSE"
+
 /usr/bin/codesign \
   --force \
   --deep \
@@ -36,6 +41,7 @@ SIGN_IDENTITY="${DEVELOPER_ID_APPLICATION:--}"
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_SOURCE"
 /usr/bin/ditto "$APP_SOURCE" "$APP_DESTINATION"
 /usr/bin/ditto "$APP_SOURCE" "$STAGE/openEq.app"
+/bin/cp "$LICENSE_SOURCE" "$STAGE/LICENSE"
 /bin/ln -s /Applications "$STAGE/Applications"
 
 /usr/bin/hdiutil create \

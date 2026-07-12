@@ -1,14 +1,18 @@
 # openEq
 
-Open-source, system-wide parametric EQ for AirPods Pro on macOS.
+Open-source, system-wide parametric EQ for macOS, developed and validated with AirPods Pro 3.
 
 openEq uses a device-specific Core Audio process tap and a private aggregate device. It processes the system output mix in a native, minimum-phase biquad cascade without installing a kernel extension, virtual audio driver, or Audio Unit host.
+
+![openEq menu-bar icon and stopped-state menu](docs/images/openEq-menu-bar.png)
+
+*openEq lives in the menu bar and intentionally stays out of the Dock.*
 
 ![openEq parametric editor with device identity hidden](docs/images/openEq-editor.png)
 
 ## Highlights
 
-- System-wide processing for the selected AirPods Pro output
+- System-wide processing for the selected default output device
 - Bell, low shelf, high shelf, low pass, high pass, and notch filters
 - Arbitrary band count, with a 64-band real-time safety limit
 - Exact frequency, gain, and Q entry
@@ -27,11 +31,13 @@ openEq uses a device-specific Core Audio process tap and a private aggregate dev
 
 - macOS 14.2 or newer
 - Apple-silicon Mac for the supplied local packaging script
-- AirPods Pro selected as the macOS output
+- A live output device selected as the macOS default
 - One-time **System Audio Recording** permission
 - Xcode 16 or newer when building from source
 
-The current v1 device policy intentionally targets AirPods Pro. The Core Audio/DSP design is not inherently limited to one headphone model, but broader device support needs its own routing and format validation.
+openEq is not tied to an AirPods model or correction curve. It can process compatible headphones, built-in speakers, USB DACs, and other Core Audio output devices. The selected device must be the macOS default output, alive, and expose matching native-rate 32-bit floating-point tap/input/output streams. openEq refuses an incompatible route rather than resampling or silently degrading it.
+
+AirPods Pro 3 are the most extensively tested route. Other devices can have different buffer-size and stream-layout behavior, so reports with non-personal diagnostics are welcome.
 
 ## Install and run
 
@@ -48,7 +54,7 @@ Menu actions are deliberately simple:
 
 ## Included preset
 
-The app bundles an **AirPods Pro 3 — JM-1 10-band** preset with `-3.8 dB` preamp and ten peaking filters. It is based on a population-average measurement correction, not personalized hearing data. Fit, seal, firmware, volume, and individual anatomy can change the ideal correction.
+The app bundles an **AirPods Pro 3 — JM-1 10-band** preset with `-3.8 dB` preamp and ten peaking filters. That preset is specifically for AirPods Pro 3 with ANC enabled. It is based on a population-average measurement correction, not personalized hearing data. It should not be used unchanged with other headphones. Fit, seal, firmware, volume, and individual anatomy can change the ideal correction.
 
 Profiles can also be pasted in this form:
 
@@ -61,7 +67,7 @@ Filter 2: ON PK Fc 143 Hz Gain +4.1 dB Q 1.25
 ## Architecture
 
 ```text
-macOS system mix for selected AirPods
+macOS system mix for selected output
                 |
                 v
 device-specific Core Audio process tap
@@ -70,7 +76,7 @@ device-specific Core Audio process tap
 private aggregate input/output device
                 |
                 v
-preamp -> cascaded RBJ biquads -> AirPods output
+preamp -> cascaded RBJ biquads -> selected output device
 ```
 
 The app excludes its own process from the tap to prevent feedback. `CATapMutedWhenTapped` preserves fail-open behavior: stopping or destroying the tap restores the normal direct route.
@@ -85,7 +91,7 @@ On the development AirPods route at 48 kHz:
 - 5.333 ms measured tap-to-output timestamp delta
 - 0.011 ms typical / 0.024 ms observed maximum callback DSP time with 10 active bands
 - zero non-finite outputs and format mismatches during the captured run
-- 27 automated tests covering filter goldens, stability, cascade behavior, real-time bridging, crossfades, profile storage/import, reference curves, and legacy profile migration
+- 28 automated tests covering device eligibility, filter goldens, stability, cascade behavior, real-time bridging, crossfades, profile storage/import, reference curves, and legacy profile migration
 
 AirPods reported roughly 160 ms of their own Bluetooth/device latency on that system. That baseline is separate from openEq's measured route overhead. Results vary by Mac, AirPods model, radio conditions, and macOS version.
 
@@ -105,4 +111,6 @@ See [SECURITY.md](SECURITY.md) for the threat model, permission rationale, and v
 
 The local package script creates a hardened-runtime, ad-hoc-signed app/DMG/ZIP for development and personal installation. A public binary release should use a Developer ID Application certificate and Apple notarization. Source builds do not need an audio driver or privileged installer.
 
-No software license has been selected yet. Until one is added, normal copyright restrictions apply.
+## License
+
+openEq is available under the [MIT License](LICENSE). The software is provided **as is**, without warranty; use it at your own risk. The package script embeds the license in the application and includes it in the DMG.

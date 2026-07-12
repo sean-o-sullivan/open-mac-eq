@@ -106,14 +106,11 @@ final class TapPassThroughEngine {
         EQRealtimeDSPReset(realtimeDSP)
         EQRealtimeStatsReset(realtimeStats)
 
-        guard device.isAirPodsPro else {
-            throw SpikeError("Selected output is not identified as AirPods Pro.")
-        }
         guard device.isDefaultOutput else {
-            throw SpikeError("Select \(device.name) as the macOS default output first.")
+            throw SpikeError("Select this device as the macOS default output first.")
         }
         guard device.isAlive else {
-            throw SpikeError("Selected AirPods output is not alive.")
+            throw SpikeError("Selected output device is not alive.")
         }
 
         do {
@@ -122,7 +119,7 @@ final class TapPassThroughEngine {
                 objectID: device.id,
                 selector: kAudioDevicePropertyBufferFrameSize,
                 value: Self.lowLatencyBufferFrameSize,
-                operation: "request low-latency AirPods buffer"
+                operation: "request low-latency output-device buffer"
             )
 
             let processID = try AudioDeviceCatalog.ownProcessObjectID()
@@ -180,14 +177,14 @@ final class TapPassThroughEngine {
                 objectID: device.id,
                 selector: kAudioDevicePropertyBufferFrameSize,
                 value: Self.lowLatencyBufferFrameSize,
-                operation: "confirm low-latency AirPods buffer"
+                operation: "confirm low-latency output-device buffer"
             )
 
             let physicalBufferFrames: UInt32 = try CoreAudioProperty.scalar(
                 objectID: device.id,
                 selector: kAudioDevicePropertyBufferFrameSize,
                 initialValue: UInt32(0),
-                operation: "verify AirPods buffer size"
+                operation: "verify output-device buffer size"
             )
             let aggregateBufferFrames: UInt32 = try CoreAudioProperty.scalar(
                 objectID: aggregateID,
@@ -306,7 +303,7 @@ final class TapPassThroughEngine {
                 objectID: bufferRestore.deviceID,
                 selector: kAudioDevicePropertyBufferFrameSize,
                 value: bufferRestore.frameSize,
-                operation: "restore original AirPods buffer"
+                operation: "restore original output-device buffer"
             )
             self.bufferRestore = nil
         }

@@ -10,6 +10,12 @@ enum DeviceClassifier {
     }
 }
 
+enum OutputDevicePolicy {
+    static func isProcessable(_ device: AudioDeviceDescriptor) -> Bool {
+        device.isDefaultOutput && device.isAlive
+    }
+}
+
 enum AudioTiming {
     static func milliseconds(frames: UInt32, sampleRate: Double) -> Double? {
         guard sampleRate > 0 else { return nil }

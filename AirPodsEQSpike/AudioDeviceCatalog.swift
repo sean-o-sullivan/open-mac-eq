@@ -76,8 +76,8 @@ enum AudioDeviceCatalog {
             return try? descriptor(deviceID: deviceID, defaultOutput: defaultOutput)
         }
         .sorted { lhs, rhs in
-            if lhs.isAirPodsPro != rhs.isAirPodsPro { return lhs.isAirPodsPro }
             if lhs.isDefaultOutput != rhs.isDefaultOutput { return lhs.isDefaultOutput }
+            if lhs.isAlive != rhs.isAlive { return lhs.isAlive }
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
     }

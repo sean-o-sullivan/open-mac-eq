@@ -45,10 +45,12 @@ dist/openEq-1.0.zip
 
 Set `DEVELOPER_ID_APPLICATION` to a Developer ID Application identity when signing for distribution. Notarization is a separate required step for a clean public binary release.
 
+The app, DMG, and ZIP include the project's MIT license. The software is provided as is, without warranty; use it at your own risk.
+
 ## First run
 
-1. Connect AirPods Pro.
-2. Select them as the macOS output.
+1. Connect the headphones, speakers, or DAC you want to use.
+2. Select that device as the macOS default output.
 3. Open the openEq menu-bar icon and choose **Show Editor**.
 4. Select or create a profile.
 5. Choose **Open EQ** in the menu.
@@ -60,13 +62,13 @@ Closing the editor window leaves processing active. Choose **Close EQ** to destr
 
 Options:
 
-- Click **Load JM-1 10-band** for the bundled AirPods Pro 3 preset.
+- Click **Load AirPods Pro 3 ANC preset** for the bundled AirPods Pro 3 correction.
 - Use **Profile I/O → Paste EQ text**.
 - Import a `.txt` Equalizer APO-style profile.
 - Import a versioned openEq `.json` profile.
 - Enter frequency, gain, and Q directly in the band table.
 
-Save the profile, then choose whether openEq should ask, always apply, or never auto-apply it for that exact Core Audio device UID.
+Save the profile, then choose whether openEq should ask, always apply, or never auto-apply it for that exact Core Audio device UID. Profiles are device-specific, so changing outputs does not silently reuse another device's correction.
 
 ## Run in the background
 
@@ -82,7 +84,8 @@ Sleep stops processing and restores direct audio. Wake refreshes device/profile 
 
 - Ensure only one openEq instance is running.
 - Choose **Close EQ**, then **Open EQ** again.
-- Confirm AirPods Pro are still the default output.
+- Confirm the selected device is still the macOS default output.
+- Check the status message for an unsupported format or buffer-size error.
 - Quit other system-EQ or virtual-routing apps during diagnosis.
 
 ### System Audio Recording was denied
@@ -92,6 +95,10 @@ Open System Settings → Privacy & Security → Screen & System Audio Recording,
 ### AirPods microphone/call changed the format
 
 Using the AirPods microphone can change the Bluetooth profile, sample rate, or channel layout. openEq stops rather than silently resampling. Close the call/microphone client, restore stereo output, then choose **Open EQ** again.
+
+### Another output device is rejected
+
+openEq requires matching native-rate, 32-bit floating-point Core Audio tap/input/output streams. It does not insert a sample-rate converter. Some hardware or virtual devices may expose an incompatible layout; openEq reports the mismatch and restores direct audio.
 
 ### Launch at login fails
 

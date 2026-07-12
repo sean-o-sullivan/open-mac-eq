@@ -9,6 +9,18 @@ final class SpikeMathTests: XCTestCase {
         XCTAssertFalse(DeviceClassifier.isAirPodsPro(name: "Built-in Output", modelUID: nil))
     }
 
+    func testAnyLiveDefaultOutputIsProcessable() {
+        let builtIn = outputDevice(name: "Built-in Speakers", isDefaultOutput: true, isAlive: true)
+        let usb = outputDevice(name: "USB DAC", isDefaultOutput: true, isAlive: true)
+        let nonDefault = outputDevice(name: "Other Headphones", isDefaultOutput: false, isAlive: true)
+        let unavailable = outputDevice(name: "Disconnected DAC", isDefaultOutput: true, isAlive: false)
+
+        XCTAssertTrue(OutputDevicePolicy.isProcessable(builtIn))
+        XCTAssertTrue(OutputDevicePolicy.isProcessable(usb))
+        XCTAssertFalse(OutputDevicePolicy.isProcessable(nonDefault))
+        XCTAssertFalse(OutputDevicePolicy.isProcessable(unavailable))
+    }
+
     func testFrameDurationAt48kHz() throws {
         XCTAssertEqual(try XCTUnwrap(AudioTiming.milliseconds(frames: 128, sampleRate: 48_000)), 2.666_666, accuracy: 0.000_001)
         XCTAssertEqual(try XCTUnwrap(AudioTiming.milliseconds(frames: 256, sampleRate: 48_000)), 5.333_333, accuracy: 0.000_001)
@@ -29,5 +41,25 @@ final class SpikeMathTests: XCTestCase {
 
     func testRealtimeDSPCrossfadesParameterUpdates() {
         XCTAssertTrue(EQRealtimeDSPCrossfadeSelfTest())
+    }
+
+    private func outputDevice(
+        name: String,
+        isDefaultOutput: Bool,
+        isAlive: Bool
+    ) -> AudioDeviceDescriptor {
+        AudioDeviceDescriptor(
+            id: 1,
+            uid: name,
+            name: name,
+            modelUID: nil,
+            transportType: 0,
+            isDefaultOutput: isDefaultOutput,
+            isAlive: isAlive,
+            sampleRate: 48_000,
+            bufferFrameSize: 128,
+            deviceLatencyFrames: 0,
+            safetyOffsetFrames: 0
+        )
     }
 }

@@ -29,7 +29,7 @@ Device associations are keyed by the exact Core Audio device UID and store:
 - last-used profile UUID
 - Ask / Always Apply / Never preference
 
-When the saved AirPods UID newly becomes the default output, the app either offers the last profile, applies it, or does nothing according to that preference. Display names are never used as persistence keys. Forgetting/re-pairing the AirPods may produce a different UID and intentionally does not bind silently.
+When a saved device UID newly becomes the default output, the app either offers the last profile, applies it, or does nothing according to that preference. Display names are never used as persistence keys. Re-pairing Bluetooth headphones or reconnecting some interfaces may produce a different UID and intentionally does not bind silently.
 
 ## Editor
 
@@ -58,15 +58,15 @@ Reference points are visual only. They are drawn as a dotted line with a logarit
 
 ## Verification
 
-Complete project test result: **26 passed, 0 failed, 0 skipped** on macOS 26.0.1 / arm64.
+Complete project test result: **28 passed, 0 failed, 0 skipped** on macOS 26.0.1 / arm64.
 
-The expanded profile/editor binary still needs one manual pass on AirPods after relaunch:
+The AirPods Pro validation route completed the manual editor/DSP pass. Generalized device selection is automated-test covered; additional physical output types still benefit from route-specific manual validation:
 
 - create, save, rename, reload, and delete a profile
 - add one of every filter type and verify numeric edits match graph nodes
 - drag/scroll while audio plays and confirm smooth changes
 - import a known target curve and confirm dotted overlay only
-- reconnect AirPods and exercise Ask/Always/Never behavior
+- reconnect or switch output devices and exercise Ask/Always/Never behavior
 - sleep/wake once while DSP is active and confirm fail-open stop plus clean refresh
 
-The AUHAL fallback remains intentionally unimplemented for v1. Same-cycle private aggregate routing passed on the only in-scope output class—AirPods Pro—so a second routing architecture would add risk without satisfying an unmet requirement.
+The AUHAL fallback remains intentionally unimplemented for v1. Same-cycle private aggregate routing passed on the AirPods Pro validation route. Other compatible Core Audio outputs use the same path; incompatible formats fail safely rather than switching to a second routing architecture.

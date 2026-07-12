@@ -9,7 +9,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("openEq")
                     .font(.title2.bold())
-                Text("Device-specific Core Audio tap → tested biquad cascade → AirPods output")
+                Text("Device-specific Core Audio tap → tested biquad cascade → selected output")
                     .foregroundStyle(.secondary)
             }
 
@@ -97,7 +97,7 @@ struct ContentView: View {
                         Button("New profile") {
                             model.createNewProfile()
                         }
-                        Button("Load JM-1 10-band") {
+                        Button("Load AirPods Pro 3 ANC preset") {
                             model.loadBuiltInJM1Profile()
                         }
                         if model.activeProfile == nil {
@@ -117,7 +117,7 @@ struct ContentView: View {
                     }
 
                     Picker(
-                        "When these AirPods become the output",
+                        "When this device becomes the output",
                         selection: Binding<ProfileAutoApplyBehavior>(
                             get: { model.autoApplyBehavior },
                             set: { try? model.setAutoApplyBehavior($0) }
@@ -137,8 +137,8 @@ struct ContentView: View {
                             )
                         )
                         Toggle(
-                            "Start EQ automatically when saved AirPods/profile are ready",
-                            isOn: $model.autoStartWhenAirPodsSelected
+                            "Start EQ automatically when saved device/profile are ready",
+                            isOn: $model.autoStartWhenOutputSelected
                         )
                     }
                     Text("Closing the window leaves EQ running from the menu-bar icon. Automatic start requires a saved profile and no pending Ask prompt.")

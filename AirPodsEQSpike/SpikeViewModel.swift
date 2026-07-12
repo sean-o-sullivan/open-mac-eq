@@ -9,7 +9,7 @@ final class SpikeViewModel: ObservableObject {
     @Published private(set) var devices: [AudioDeviceDescriptor] = []
     @Published var selectedUID = ""
     @Published private(set) var isRunning = false
-    @Published private(set) var status = "Looking for AirPods Pro…"
+    @Published private(set) var status = "Looking for the default output…"
     @Published private(set) var snapshot = PassThroughSnapshot.zero
     @Published private(set) var logLines: [String] = []
     @Published var dspEnabled = true {
@@ -35,13 +35,11 @@ final class SpikeViewModel: ObservableObject {
     @Published var selectedBandID: UUID?
     @Published var showPhaseResponse = false
     @Published var profileTextDraft = ""
-    @Published var autoStartWhenAirPodsSelected = UserDefaults.standard.bool(
-        forKey: "autoStartWhenAirPodsSelected"
-    ) {
+    @Published var autoStartWhenOutputSelected = SpikeViewModel.initialAutoStartPreference() {
         didSet {
             UserDefaults.standard.set(
-                autoStartWhenAirPodsSelected,
-                forKey: "autoStartWhenAirPodsSelected"
+                autoStartWhenOutputSelected,
+                forKey: "autoStartWhenOutputSelected"
             )
             scheduleAutoStartIfNeeded()
         }
@@ -61,7 +59,7 @@ final class SpikeViewModel: ObservableObject {
     private let associationStore: DeviceProfileAssociationStore?
     private var runningDeviceUID: String?
     private var runningSampleRate: Double?
-    private var lastObservedDefaultAirPodsUID: String?
+    private var lastObservedDefaultOutputUID: String?
     private var workspaceObservers: [NSObjectProtocol] = []
 
     init() {
@@ -79,7 +77,7 @@ final class SpikeViewModel: ObservableObject {
         devices.forEach { device in
             appendLog(
                 "Output device: default=\(device.isDefaultOutput), " +
-                "AirPodsPro=\(device.isAirPodsPro), rate=\(device.sampleRate), " +
+                "alive=\(device.isAlive), rate=\(device.sampleRate), " +
                 "buffer=\(device.bufferFrameSize), transport=\(device.transportName)"
             )
         }
@@ -103,7 +101,7 @@ final class SpikeViewModel: ObservableObject {
 
     var canStart: Bool {
         guard let device = selectedDevice else { return false }
-        return !isRunning && device.isAirPodsPro && device.isDefaultOutput && device.isAlive && engine != nil
+        return !isRunning && OutputDevicePolicy.isProcessable(device) && engine != nil
     }
 
     var testFrequencyHz: Double {
@@ -125,7 +123,7 @@ final class SpikeViewModel: ObservableObject {
 
     func displayName(for device: AudioDeviceDescriptor) -> String {
         guard hideDeviceIdentity else { return device.name }
-        return device.isAirPodsPro ? "AirPods Pro (identity hidden)" : "Output device (identity hidden)"
+        return "Output device (identity hidden)"
     }
 
     func refreshDevices() {
@@ -134,22 +132,16 @@ final class SpikeViewModel: ObservableObject {
             devices = updated
 
             if !updated.contains(where: { $0.uid == selectedUID }) {
-                selectedUID = updated.first(where: { $0.isAirPodsPro && $0.isDefaultOutput })?.uid
-                    ?? updated.first(where: \.isAirPodsPro)?.uid
+                selectedUID = updated.first(where: \.isDefaultOutput)?.uid
+                    ?? updated.first(where: \.isAlive)?.uid
                     ?? updated.first?.uid
                     ?? ""
             }
 
             if !isRunning {
-                if let airPods = updated.first(where: { $0.isAirPodsPro && $0.isDefaultOutput }) {
-                    status = "Ready: \(displayName(for: airPods)) is the default output."
-                } else if updated.contains(where: \.isAirPodsPro) {
-                    status = "AirPods Pro found; select them as the macOS output."
-                } else {
-                    status = "Connect AirPods Pro and select them as the macOS output."
-                }
+                updateIdleStatus(using: updated)
             }
-            observeDefaultAirPodsProfileOpportunity()
+            observeDefaultOutputProfileOpportunity()
         } catch {
             if !isRunning {
                 status = error.localizedDescription
@@ -160,6 +152,10 @@ final class SpikeViewModel: ObservableObject {
 
     func start() {
         guard let device = selectedDevice, let engine else { return }
+        guard OutputDevicePolicy.isProcessable(device) else {
+            updateIdleStatus(using: devices)
+            return
+        }
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
            let bundleIdentifier = Bundle.main.bundleIdentifier {
             let otherInstances = NSRunningApplication.runningApplications(
@@ -202,12 +198,12 @@ final class SpikeViewModel: ObservableObject {
             devices = updated
             guard isRunning, let runningDeviceUID else {
                 refreshSelectionAfterPoll(updated)
-                observeDefaultAirPodsProfileOpportunity()
+                observeDefaultOutputProfileOpportunity()
                 return
             }
 
             guard let current = updated.first(where: { $0.uid == runningDeviceUID }) else {
-                stop(reason: "AirPods disconnected; tap destroyed.")
+                stop(reason: "Output device disconnected; tap destroyed.")
                 return
             }
             guard current.isDefaultOutput else {
@@ -215,7 +211,7 @@ final class SpikeViewModel: ObservableObject {
                 return
             }
             guard current.isAlive else {
-                stop(reason: "AirPods device became unavailable; tap destroyed.")
+                stop(reason: "Output device became unavailable; tap destroyed.")
                 return
             }
             if let runningSampleRate, abs(current.sampleRate - runningSampleRate) >= 0.5 {
@@ -230,18 +226,12 @@ final class SpikeViewModel: ObservableObject {
 
     private func refreshSelectionAfterPoll(_ updated: [AudioDeviceDescriptor]) {
         if !updated.contains(where: { $0.uid == selectedUID }) {
-            selectedUID = updated.first(where: { $0.isAirPodsPro && $0.isDefaultOutput })?.uid
-                ?? updated.first(where: \.isAirPodsPro)?.uid
+            selectedUID = updated.first(where: \.isDefaultOutput)?.uid
+                ?? updated.first(where: \.isAlive)?.uid
                 ?? updated.first?.uid
                 ?? ""
         }
-        if let airPods = updated.first(where: { $0.isAirPodsPro && $0.isDefaultOutput }) {
-            status = "Ready: \(displayName(for: airPods)) is the default output."
-        } else if updated.contains(where: \.isAirPodsPro) {
-            status = "AirPods Pro found; select them as the macOS output."
-        } else {
-            status = "Connect AirPods Pro and select them as the macOS output."
-        }
+        updateIdleStatus(using: updated)
     }
 
     func createProfileFromValidationControls() {
@@ -647,7 +637,7 @@ final class SpikeViewModel: ObservableObject {
         if rememberForDevice {
             try rememberActiveProfileForDevice()
         }
-        appendLog("Applied profile \"\(profile.name)\" to the selected AirPods device.")
+        appendLog("Applied profile \"\(profile.name)\" to the selected output device.")
     }
 
     private func activateImportedProfile(_ profile: EQProfile) throws {
@@ -668,17 +658,21 @@ final class SpikeViewModel: ObservableObject {
         ))
     }
 
-    private func observeDefaultAirPodsProfileOpportunity() {
-        let currentUID = devices.first(where: { $0.isAirPodsPro && $0.isDefaultOutput })?.uid
-        guard currentUID != lastObservedDefaultAirPodsUID else { return }
-        lastObservedDefaultAirPodsUID = currentUID
+    private func observeDefaultOutputProfileOpportunity() {
+        let currentUID = devices.first(where: \.isDefaultOutput)?.uid
+        guard currentUID != lastObservedDefaultOutputUID else { return }
+        lastObservedDefaultOutputUID = currentUID
         pendingProfileOffer = nil
-        guard let currentUID, let associationStore else { return }
+        guard let currentUID else { return }
         if !isRunning {
             selectedUID = currentUID
         }
         if activeProfile?.deviceUID != currentUID {
             activeProfile = nil
+        }
+        guard let associationStore else {
+            autoApplyBehavior = .ask
+            return
         }
 
         do {
@@ -708,14 +702,14 @@ final class SpikeViewModel: ObservableObject {
     }
 
     private func scheduleAutoStartIfNeeded() {
-        guard autoStartWhenAirPodsSelected,
+        guard autoStartWhenOutputSelected,
               !isRunning,
               activeProfile != nil,
               pendingProfileOffer == nil,
               canStart else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self,
-                  self.autoStartWhenAirPodsSelected,
+                  self.autoStartWhenOutputSelected,
                   !self.isRunning,
                   self.pendingProfileOffer == nil,
                   self.canStart else { return }
@@ -744,11 +738,39 @@ final class SpikeViewModel: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                self.lastObservedDefaultAirPodsUID = nil
+                self.lastObservedDefaultOutputUID = nil
                 self.refreshDevices()
-                self.appendLog("Mac woke; refreshed AirPods and profile association state.")
+                self.appendLog("Mac woke; refreshed output-device and profile association state.")
             }
         })
+    }
+
+    private func updateIdleStatus(using devices: [AudioDeviceDescriptor]) {
+        if let selected = devices.first(where: { $0.uid == selectedUID }), selected.isAlive {
+            if selected.isDefaultOutput {
+                status = "Ready: \(displayName(for: selected)) is the default output."
+            } else {
+                status = "Select this device as the macOS default output."
+            }
+        } else if devices.contains(where: { $0.isDefaultOutput && $0.isAlive }) {
+            status = "Select the live default output device."
+        } else {
+            status = "No live output device is available."
+        }
+    }
+
+    private static func initialAutoStartPreference() -> Bool {
+        let defaults = UserDefaults.standard
+        let key = "autoStartWhenOutputSelected"
+        if defaults.object(forKey: key) != nil {
+            return defaults.bool(forKey: key)
+        }
+
+        let legacyKey = "autoStartWhenAirPodsSelected"
+        guard defaults.object(forKey: legacyKey) != nil else { return false }
+        let legacyValue = defaults.bool(forKey: legacyKey)
+        defaults.set(legacyValue, forKey: key)
+        return legacyValue
     }
 
     private func readImportData(from url: URL) throws -> Data {
