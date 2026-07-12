@@ -95,11 +95,7 @@ On the development AirPods route at 48 kHz:
 
 AirPods reported roughly 160 ms of their own Bluetooth/device latency on that system. That baseline is separate from openEq's measured route overhead. Results vary by Mac, AirPods model, radio conditions, and macOS version.
 
-Detailed engineering notes:
-
-- [Routing spike](SPIKE_RESULTS.md)
-- [DSP core](DSP_CORE_RESULTS.md)
-- [Profile/editor](PROFILE_EDITOR.md)
+Engineering notes and local release records are collected in [docs](docs/README.md).
 
 ## Privacy and security
 
