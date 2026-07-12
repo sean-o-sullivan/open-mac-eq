@@ -1,12 +1,12 @@
 # openEq
 
-Open-source, system-wide parametric EQ for macOS, developed and validated with AirPods Pro 3.
-
-openEq uses a device-specific Core Audio process tap and a private aggregate device. It processes the system output mix in a native, minimum-phase biquad cascade without installing a kernel extension, virtual audio driver, or Audio Unit host.
-
 <p align="center">
   <img src="AirPodsEQSpike/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="112" alt="openEq app icon">
 </p>
+
+Open-source, system-wide parametric EQ for macOS, developed and validated with AirPods Pro 3.
+
+openEq uses a device-specific Core Audio process tap and a private aggregate device. It processes the system output mix in a native, minimum-phase biquad cascade without installing a kernel extension, virtual audio driver, or Audio Unit host.
 
 ![openEq menu-bar icon and stopped-state menu](docs/images/openEq-menu-bar.png)
 
