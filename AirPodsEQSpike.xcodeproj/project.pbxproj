@@ -28,6 +28,7 @@
 		A00100000000000000000014 /* EQTextProfileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100000000000000000019 /* EQTextProfileImporter.swift */; };
 		A00100000000000000000015 /* EQTextProfileImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001A /* EQTextProfileImporterTests.swift */; };
 		A00100000000000000000016 /* airpods-pro-3-jm1-10band.txt in Resources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */; };
+		A00100000000000000000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B0010000000000000000001C /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +69,7 @@
 		B00100000000000000000019 /* EQTextProfileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQTextProfileImporter.swift; sourceTree = "<group>"; };
 		B0010000000000000000001A /* EQTextProfileImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EQTextProfileImporterTests.swift; sourceTree = "<group>"; };
 		B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Presets/airpods-pro-3-jm1-10band.txt"; sourceTree = "<group>"; };
+		B0010000000000000000001C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +115,7 @@
 				B00100000000000000000017 /* ReferenceCurveImporter.swift */,
 				B00100000000000000000019 /* EQTextProfileImporter.swift */,
 				B0010000000000000000001B /* airpods-pro-3-jm1-10band.txt */,
+				B0010000000000000000001C /* Assets.xcassets */,
 				B00100000000000000000008 /* RealtimeBridge.c */,
 				B00100000000000000000009 /* RealtimeBridge.h */,
 				B0010000000000000000000A /* AirPodsEQSpike-Bridging-Header.h */,
@@ -215,7 +218,15 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		D00100000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A00100000000000000000016 /* airpods-pro-3-jm1-10band.txt in Resources */); runOnlyForDeploymentPostprocessing = 0;};
+		D00100000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00100000000000000000016 /* airpods-pro-3-jm1-10band.txt in Resources */,
+				A00100000000000000000017 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D00100000000000000000006 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
 /* End PBXResourcesBuildPhase section */
 
@@ -304,6 +315,7 @@
 		F00100000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_DEBUG_DYLIB = NO;
@@ -323,6 +335,7 @@
 		F00100000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = YES;

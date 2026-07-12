@@ -11,8 +11,8 @@ Date: 2026-07-12
 SHA-256:
 
 ```text
-9dfe88d4c7510614310316723dff780a1caf146b91cd2a17d8f861fede3ad85e  openEq-1.0.dmg
-1bee104182c66c8b69b001f453e629ada294e2ef716cbcc8e70e9912a6501365  openEq-1.0.zip
+6f01857c5cc40a09f617fee8da4545272226b0e138a4d19e5b74af7e17f9ef88  openEq-1.0.dmg
+c9e7bc0db22626cd08b05edfaf7936452a602d27ab08f59a78ff8f9b75ad6a0f  openEq-1.0.zip
 ```
 
 The app uses hardened runtime and ad-hoc signing for local use. `codesign --verify --deep --strict` passes. Public distribution requires rebuilding with a Developer ID Application certificate and submitting the result for notarization.
@@ -51,3 +51,4 @@ This is a population-average measurement correction, not a personalized hearing 
 - `LSUIElement = true`; no Dock or Command-Tab entry
 - menu-bar controller appears and the editor remains accessible
 - any live macOS default output is eligible; incompatible Core Audio stream formats fail safely
+- complete macOS app-icon asset catalog compiled into `AppIcon.icns`
