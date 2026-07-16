@@ -62,7 +62,7 @@ struct AudioReliabilityMonitor {
     init(
         overloadThreshold: Int = 3,
         overloadWindowSeconds: TimeInterval = 10,
-        callbackStallSeconds: TimeInterval = 2
+        callbackStallSeconds: TimeInterval = 5
     ) {
         self.overloadThreshold = overloadThreshold
         self.overloadWindowSeconds = overloadWindowSeconds
@@ -127,6 +127,37 @@ struct AudioReliabilityMonitor {
         guard stalledFor >= callbackStallSeconds else { return nil }
         lastCallbackAdvanceTime = now
         return .callbackStall(seconds: stalledFor)
+    }
+}
+
+enum SystemMemoryPressureLevel: Equatable {
+    case normal
+    case warning
+    case critical
+}
+
+enum AudioRecoveryAction: Equatable {
+    case rebuild(frameSize: UInt32)
+    case deferUntilPressureClears
+    case keepCurrentRoute
+}
+
+enum AudioRecoveryPolicy {
+    static func action(
+        for trigger: AudioRecoveryTrigger,
+        currentFrameSize: UInt32,
+        memoryPressure: SystemMemoryPressureLevel
+    ) -> AudioRecoveryAction {
+        guard memoryPressure == .normal else {
+            return .deferUntilPressureClears
+        }
+
+        let recoveryFrameSize = AudioBufferPolicy.recoveryFrameSize(after: currentFrameSize)
+        if case .processorOverloadBurst = trigger,
+           recoveryFrameSize == currentFrameSize {
+            return .keepCurrentRoute
+        }
+        return .rebuild(frameSize: recoveryFrameSize)
     }
 }
 

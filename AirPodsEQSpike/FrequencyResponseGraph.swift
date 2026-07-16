@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-struct FrequencyResponseGraph: View {
+struct FrequencyResponseGraph: View, Equatable {
     let profile: EQProfile
     let sampleRate: Double
     let selectedBandID: UUID?
@@ -10,6 +10,13 @@ struct FrequencyResponseGraph: View {
     let onUpdateBand: (EQBand) -> Void
 
     private let gainRange = -24.0...24.0
+
+    static func == (lhs: FrequencyResponseGraph, rhs: FrequencyResponseGraph) -> Bool {
+        lhs.profile == rhs.profile &&
+        lhs.sampleRate == rhs.sampleRate &&
+        lhs.selectedBandID == rhs.selectedBandID &&
+        lhs.showPhase == rhs.showPhase
+    }
 
     var body: some View {
         Canvas { context, size in

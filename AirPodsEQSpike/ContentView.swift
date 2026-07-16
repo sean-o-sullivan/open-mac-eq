@@ -213,46 +213,7 @@ struct ContentView: View {
                 .disabled(!model.isRunning || model.activeProfile != nil)
             }
 
-            GroupBox("Live diagnostics") {
-                Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 5) {
-                    detailRow("Callbacks", "\(model.snapshot.callbackCount)")
-                    detailRow("Frames processed", "\(model.snapshot.frameCount)")
-                    detailRow("Last callback", "\(model.snapshot.lastFrameCount) frames")
-                    detailRow("Active bands", "\(model.snapshot.activeBandCount)")
-                    detailRow("DSP updates", "\(model.snapshot.dspConfigurationApplyCount)")
-                    detailRow("Crossfade remaining", "\(model.snapshot.crossfadeFramesRemaining) frames")
-                    detailRow(
-                        "Input / output buffers",
-                        "\(model.snapshot.inputBufferCount) / \(model.snapshot.outputBufferCount)"
-                    )
-                    detailRow(
-                        "Timestamp delta",
-                        String(format: "%.3f ms", model.snapshot.timestampDeltaMilliseconds)
-                    )
-                    detailRow(
-                        "Callback DSP time (last / max)",
-                        String(
-                            format: "%.3f / %.3f ms",
-                            model.snapshot.lastProcessingMilliseconds,
-                            model.snapshot.maximumProcessingMilliseconds
-                        )
-                    )
-                    detailRow("Processor overloads", "\(model.snapshot.processorOverloadCount)")
-                    detailRow(
-                        "Output peak (last / max)",
-                        "\(peakLabel(model.snapshot.lastOutputPeakMagnitude)) / " +
-                        peakLabel(model.snapshot.maximumOutputPeakMagnitude)
-                    )
-                    detailRow(
-                        "Samples above 0 dBFS",
-                        "\(model.snapshot.aboveFullScaleSampleCount)"
-                    )
-                    detailRow("Non-finite outputs", "\(model.snapshot.nonFiniteOutputCount)")
-                    detailRow("Format mismatches", "\(model.snapshot.formatMismatchCount)")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .monospacedDigit()
-            }
+            LiveDiagnosticsView(model: model.diagnostics)
 
             GroupBox("Event log") {
                 ScrollView {
@@ -269,17 +230,70 @@ struct ContentView: View {
         .frame(minWidth: 800, minHeight: 1_080)
     }
 
+    private func deviceLabel(_ device: AudioDeviceDescriptor) -> String {
+        let defaultSuffix = device.isDefaultOutput ? " — default" : ""
+        let airPodsSuffix = device.isAirPodsPro ? " — AirPods Pro" : ""
+        return "\(model.displayName(for: device))\(airPodsSuffix)\(defaultSuffix)"
+    }
+
+    private func detailRow(_ label: String, _ value: String) -> some View {
+        GridRow {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Text(value)
+        }
+    }
+}
+
+private struct LiveDiagnosticsView: View {
+    @ObservedObject var model: RealtimeDiagnosticsModel
+
+    var body: some View {
+        let snapshot = model.snapshot
+        GroupBox("Live diagnostics") {
+            Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 5) {
+                detailRow("Callbacks", "\(snapshot.callbackCount)")
+                detailRow("Frames processed", "\(snapshot.frameCount)")
+                detailRow("Last callback", "\(snapshot.lastFrameCount) frames")
+                detailRow("Active bands", "\(snapshot.activeBandCount)")
+                detailRow("DSP updates", "\(snapshot.dspConfigurationApplyCount)")
+                detailRow("Crossfade remaining", "\(snapshot.crossfadeFramesRemaining) frames")
+                detailRow(
+                    "Input / output buffers",
+                    "\(snapshot.inputBufferCount) / \(snapshot.outputBufferCount)"
+                )
+                detailRow(
+                    "Timestamp delta",
+                    String(format: "%.3f ms", snapshot.timestampDeltaMilliseconds)
+                )
+                detailRow(
+                    "Callback DSP time (last / max)",
+                    String(
+                        format: "%.3f / %.3f ms",
+                        snapshot.lastProcessingMilliseconds,
+                        snapshot.maximumProcessingMilliseconds
+                    )
+                )
+                detailRow("Processor overloads", "\(snapshot.processorOverloadCount)")
+                detailRow(
+                    "Output peak (last / max)",
+                    "\(peakLabel(snapshot.lastOutputPeakMagnitude)) / " +
+                    peakLabel(snapshot.maximumOutputPeakMagnitude)
+                )
+                detailRow("Samples above 0 dBFS", "\(snapshot.aboveFullScaleSampleCount)")
+                detailRow("Non-finite outputs", "\(snapshot.nonFiniteOutputCount)")
+                detailRow("Format mismatches", "\(snapshot.formatMismatchCount)")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .monospacedDigit()
+        }
+    }
+
     private func peakLabel(_ magnitude: Double) -> String {
         guard let decibels = AudioLevel.decibelsFS(magnitude: magnitude) else {
             return "−∞ dBFS"
         }
         return String(format: "%+.1f dBFS", decibels)
-    }
-
-    private func deviceLabel(_ device: AudioDeviceDescriptor) -> String {
-        let defaultSuffix = device.isDefaultOutput ? " — default" : ""
-        let airPodsSuffix = device.isAirPodsPro ? " — AirPods Pro" : ""
-        return "\(model.displayName(for: device))\(airPodsSuffix)\(defaultSuffix)"
     }
 
     private func detailRow(_ label: String, _ value: String) -> some View {

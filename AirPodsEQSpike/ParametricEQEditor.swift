@@ -55,6 +55,7 @@ struct ParametricEQEditor: View {
                     onSelectBand: { model.selectedBandID = $0 },
                     onUpdateBand: model.updateBand
                 )
+                .equatable()
                 .frame(height: 330)
 
                 HStack(spacing: 14) {

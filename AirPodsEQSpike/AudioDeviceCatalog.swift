@@ -217,3 +217,60 @@ enum AudioDeviceCatalog {
         )
     }
 }
+
+final class AudioDeviceChangeObserver {
+    private struct Registration {
+        let address: AudioObjectPropertyAddress
+        let listener: AudioObjectPropertyListenerBlock
+    }
+
+    private let systemObject = AudioObjectID(kAudioObjectSystemObject)
+    private let queue = DispatchQueue(label: "app.openmaceq.openEq.device-changes")
+    private var registrations: [Registration] = []
+
+    init(onChange: @escaping () -> Void) throws {
+        do {
+            try observe(selector: kAudioHardwarePropertyDefaultOutputDevice, onChange: onChange)
+            try observe(selector: kAudioHardwarePropertyDevices, onChange: onChange)
+        } catch {
+            invalidate()
+            throw error
+        }
+    }
+
+    deinit {
+        invalidate()
+    }
+
+    private func observe(
+        selector: AudioObjectPropertySelector,
+        onChange: @escaping () -> Void
+    ) throws {
+        var address = AudioObjectPropertyAddress(
+            mSelector: selector,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let listener: AudioObjectPropertyListenerBlock = { _, _ in
+            onChange()
+        }
+        try checkOSStatus(
+            AudioObjectAddPropertyListenerBlock(systemObject, &address, queue, listener),
+            "observe Core Audio output-device changes"
+        )
+        registrations.append(Registration(address: address, listener: listener))
+    }
+
+    private func invalidate() {
+        for registration in registrations {
+            var address = registration.address
+            AudioObjectRemovePropertyListenerBlock(
+                systemObject,
+                &address,
+                queue,
+                registration.listener
+            )
+        }
+        registrations.removeAll()
+    }
+}

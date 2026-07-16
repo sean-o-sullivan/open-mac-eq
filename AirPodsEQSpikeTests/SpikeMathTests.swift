@@ -103,12 +103,80 @@ final class SpikeMathTests: XCTestCase {
             expectsCallbacks: true,
             now: 4
         ))
+        let trigger = monitor.observe(
+            callbackCount: 100,
+            overloadCount: 0,
+            expectsCallbacks: true,
+            now: 5.1
+        )
+        guard case let .callbackStall(seconds)? = trigger else {
+            return XCTFail("Expected a callback-stall trigger")
+        }
+        XCTAssertEqual(seconds, 2.1, accuracy: 0.000_001)
+    }
+
+    func testReliabilityMonitorDefaultAllowsTemporarySchedulingStall() {
+        var monitor = AudioReliabilityMonitor()
+        monitor.reset(callbackCount: 100, now: 0)
+
+        XCTAssertNil(monitor.observe(
+            callbackCount: 100,
+            overloadCount: 0,
+            expectsCallbacks: true,
+            now: 4.9
+        ))
         XCTAssertEqual(monitor.observe(
             callbackCount: 100,
             overloadCount: 0,
             expectsCallbacks: true,
             now: 5.1
-        ), .callbackStall(seconds: 2.1))
+        ), .callbackStall(seconds: 5.1))
+    }
+
+    func testRecoveryIsDeferredDuringMemoryPressure() {
+        XCTAssertEqual(
+            AudioRecoveryPolicy.action(
+                for: .callbackStall(seconds: 6),
+                currentFrameSize: 256,
+                memoryPressure: .warning
+            ),
+            .deferUntilPressureClears
+        )
+        XCTAssertEqual(
+            AudioRecoveryPolicy.action(
+                for: .processorOverloadBurst(count: 3),
+                currentFrameSize: 256,
+                memoryPressure: .critical
+            ),
+            .deferUntilPressureClears
+        )
+    }
+
+    func testRecoveryEscalatesBufferOnlyWhenUseful() {
+        XCTAssertEqual(
+            AudioRecoveryPolicy.action(
+                for: .processorOverloadBurst(count: 3),
+                currentFrameSize: 256,
+                memoryPressure: .normal
+            ),
+            .rebuild(frameSize: 512)
+        )
+        XCTAssertEqual(
+            AudioRecoveryPolicy.action(
+                for: .processorOverloadBurst(count: 3),
+                currentFrameSize: 512,
+                memoryPressure: .normal
+            ),
+            .keepCurrentRoute
+        )
+        XCTAssertEqual(
+            AudioRecoveryPolicy.action(
+                for: .callbackStall(seconds: 6),
+                currentFrameSize: 512,
+                memoryPressure: .normal
+            ),
+            .rebuild(frameSize: 512)
+        )
     }
 
     func testAudioLevelConversion() throws {

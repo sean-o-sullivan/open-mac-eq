@@ -5,12 +5,21 @@ import ServiceManagement
 import UniformTypeIdentifiers
 
 @MainActor
+final class RealtimeDiagnosticsModel: ObservableObject {
+    @Published private(set) var snapshot = PassThroughSnapshot.zero
+
+    func publish(_ snapshot: PassThroughSnapshot) {
+        guard self.snapshot != snapshot else { return }
+        self.snapshot = snapshot
+    }
+}
+
+@MainActor
 final class SpikeViewModel: ObservableObject {
     @Published private(set) var devices: [AudioDeviceDescriptor] = []
     @Published var selectedUID = ""
     @Published private(set) var isRunning = false
     @Published private(set) var status = "Looking for the default output…"
-    @Published private(set) var snapshot = PassThroughSnapshot.zero
     @Published private(set) var logLines: [String] = []
     @Published var dspEnabled = true {
         didSet { publishDSPConfiguration() }
@@ -57,14 +66,23 @@ final class SpikeViewModel: ObservableObject {
     private let engine: TapPassThroughEngine?
     private let profileStore: EQProfileStore?
     private let associationStore: DeviceProfileAssociationStore?
+    let diagnostics = RealtimeDiagnosticsModel()
     private var runningDeviceUID: String?
     private var runningSampleRate: Double?
     private var lastObservedDefaultOutputUID: String?
     private var workspaceObservers: [NSObjectProtocol] = []
-    private var monitoringTimer: Timer?
+    private var healthTimer: Timer?
+    private var deviceRefreshTimer: Timer?
+    private var pendingDeviceRefresh: DispatchWorkItem?
+    private var deviceChangeObserver: AudioDeviceChangeObserver?
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
+    private var memoryPressureLevel = SystemMemoryPressureLevel.normal
     private var reliabilityMonitor = AudioReliabilityMonitor()
     private var recentRecoveryTimes: [TimeInterval] = []
     private var isRecovering = false
+    private var latestSnapshot = PassThroughSnapshot.zero
+    private var lastDiagnosticsPublicationTime = -Double.infinity
+    private var lastSuppressedRecoveryLogTime = -Double.infinity
 
     init() {
         engine = TapPassThroughEngine()
@@ -92,11 +110,16 @@ final class SpikeViewModel: ObservableObject {
             }
         }
         installWorkspaceObservers()
-        installMonitoringTimer()
+        installDeviceChangeObserver()
+        installMemoryPressureMonitor()
+        installMonitoringTimers()
     }
 
     deinit {
-        monitoringTimer?.invalidate()
+        healthTimer?.invalidate()
+        deviceRefreshTimer?.invalidate()
+        pendingDeviceRefresh?.cancel()
+        memoryPressureSource?.cancel()
         for observer in workspaceObservers {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
@@ -136,24 +159,18 @@ final class SpikeViewModel: ObservableObject {
     func refreshDevices() {
         do {
             let updated = try AudioDeviceCatalog.outputDevices()
-            devices = updated
-
-            if !updated.contains(where: { $0.uid == selectedUID }) {
-                selectedUID = updated.first(where: \.isDefaultOutput)?.uid
-                    ?? updated.first(where: \.isAlive)?.uid
-                    ?? updated.first?.uid
-                    ?? ""
+            if devices != updated {
+                devices = updated
             }
 
-            if !isRunning {
-                updateIdleStatus(using: updated)
-            }
+            guard validateRunningRoute(using: updated) else { return }
+            if !isRunning { refreshSelectionAfterPoll(updated) }
             observeDefaultOutputProfileOpportunity()
         } catch {
             if !isRunning {
-                status = error.localizedDescription
+                setStatus(error.localizedDescription)
+                appendLog("Device refresh failed: \(error.localizedDescription)")
             }
-            appendLog("Device refresh failed: \(error.localizedDescription)")
         }
     }
 
@@ -180,11 +197,12 @@ final class SpikeViewModel: ObservableObject {
             runningDeviceUID = device.uid
             runningSampleRate = device.sampleRate
             isRunning = true
-            status = "DSP active. Play audio and adjust the validation controls."
-            snapshot = engine.snapshot()
+            setStatus("DSP active. Play audio and adjust the validation controls.")
+            latestSnapshot = engine.snapshot()
+            publishLatestDiagnostics(force: true)
             reliabilityMonitor.reset(
-                callbackCount: snapshot.callbackCount,
-                overloadCount: snapshot.processorOverloadCount,
+                callbackCount: latestSnapshot.callbackCount,
+                overloadCount: latestSnapshot.processorOverloadCount,
                 now: ProcessInfo.processInfo.systemUptime
             )
             recentRecoveryTimes.removeAll(keepingCapacity: true)
@@ -202,47 +220,18 @@ final class SpikeViewModel: ObservableObject {
     }
 
     func poll() {
-        if isRunning, let engine { snapshot = engine.snapshot() }
+        guard isRunning, let engine else { return }
+        latestSnapshot = engine.snapshot()
+        let now = ProcessInfo.processInfo.systemUptime
+        publishLatestDiagnostics(now: now)
 
-        do {
-            let updated = try AudioDeviceCatalog.outputDevices()
-            devices = updated
-            guard isRunning, let runningDeviceUID else {
-                refreshSelectionAfterPoll(updated)
-                observeDefaultOutputProfileOpportunity()
-                return
-            }
-
-            guard let current = updated.first(where: { $0.uid == runningDeviceUID }) else {
-                stop(reason: "Output device disconnected; tap destroyed.")
-                return
-            }
-            guard current.isDefaultOutput else {
-                stop(reason: "Default output changed; tap destroyed.")
-                return
-            }
-            guard current.isAlive else {
-                stop(reason: "Output device became unavailable; tap destroyed.")
-                return
-            }
-            if let runningSampleRate, abs(current.sampleRate - runningSampleRate) >= 0.5 {
-                stop(reason: "Device sample rate changed; stopped for a safe rebuild.")
-                return
-            }
-
-            if let engine,
-               let trigger = reliabilityMonitor.observe(
-                   callbackCount: snapshot.callbackCount,
-                   overloadCount: snapshot.processorOverloadCount,
-                   expectsCallbacks: engine.expectsCallbacks,
-                   now: ProcessInfo.processInfo.systemUptime
-               ) {
-                recoverAudioPath(trigger: trigger)
-            }
-        } catch {
-            if isRunning {
-                stop(reason: "Device monitoring failed: \(error.localizedDescription)")
-            }
+        if let trigger = reliabilityMonitor.observe(
+            callbackCount: latestSnapshot.callbackCount,
+            overloadCount: latestSnapshot.processorOverloadCount,
+            expectsCallbacks: engine.expectsCallbacks,
+            now: now
+        ) {
+            recoverAudioPath(trigger: trigger)
         }
     }
 
@@ -254,6 +243,27 @@ final class SpikeViewModel: ObservableObject {
                 ?? ""
         }
         updateIdleStatus(using: updated)
+    }
+
+    private func validateRunningRoute(using updated: [AudioDeviceDescriptor]) -> Bool {
+        guard isRunning, let runningDeviceUID else { return true }
+        guard let current = updated.first(where: { $0.uid == runningDeviceUID }) else {
+            stop(reason: "Output device disconnected; tap destroyed.")
+            return false
+        }
+        guard current.isDefaultOutput else {
+            stop(reason: "Default output changed; tap destroyed.")
+            return false
+        }
+        guard current.isAlive else {
+            stop(reason: "Output device became unavailable; tap destroyed.")
+            return false
+        }
+        if let runningSampleRate, abs(current.sampleRate - runningSampleRate) >= 0.5 {
+            stop(reason: "Device sample rate changed; stopped for a safe rebuild.")
+            return false
+        }
+        return true
     }
 
     func createProfileFromValidationControls() {
@@ -544,8 +554,9 @@ final class SpikeViewModel: ObservableObject {
         runningSampleRate = nil
         reliabilityMonitor.reset(now: ProcessInfo.processInfo.systemUptime)
         recentRecoveryTimes.removeAll(keepingCapacity: true)
+        lastSuppressedRecoveryLogTime = -Double.infinity
         if let reason {
-            status = reason
+            setStatus(reason)
             appendLog(reason)
         }
         refreshDevices()
@@ -557,6 +568,30 @@ final class SpikeViewModel: ObservableObject {
         defer { isRecovering = false }
 
         let now = ProcessInfo.processInfo.systemUptime
+        let previousFrameSize = engine.configuration?.requestedBufferFrameSize
+            ?? AudioBufferPolicy.lowLatencyFrameSize
+        let action = AudioRecoveryPolicy.action(
+            for: trigger,
+            currentFrameSize: previousFrameSize,
+            memoryPressure: memoryPressureLevel
+        )
+        switch action {
+        case .deferUntilPressureClears:
+            if now - lastSuppressedRecoveryLogTime >= 30 {
+                appendLog("\(trigger.description); keeping the current route during system memory pressure.")
+                lastSuppressedRecoveryLogTime = now
+            }
+            return
+        case .keepCurrentRoute:
+            if now - lastSuppressedRecoveryLogTime >= 30 {
+                appendLog("\(trigger.description); already at the maximum buffer, so the current route was kept.")
+                lastSuppressedRecoveryLogTime = now
+            }
+            return
+        case .rebuild:
+            lastSuppressedRecoveryLogTime = -Double.infinity
+        }
+
         recentRecoveryTimes.removeAll { now - $0 > 60 }
         guard recentRecoveryTimes.count < 2 else {
             stop(reason: "Repeated audio-route failures; EQ stopped and direct audio was restored.")
@@ -564,16 +599,16 @@ final class SpikeViewModel: ObservableObject {
         }
         recentRecoveryTimes.append(now)
 
-        let previousFrameSize = engine.configuration?.requestedBufferFrameSize
-            ?? AudioBufferPolicy.lowLatencyFrameSize
-        let recoveryFrameSize = AudioBufferPolicy.recoveryFrameSize(after: previousFrameSize)
-        status = "Recovering audio route at \(recoveryFrameSize) frames…"
+        guard case let .rebuild(recoveryFrameSize) = action else { return }
+        setStatus("Recovering audio route at \(recoveryFrameSize) frames…")
         appendLog("\(trigger.description); rebuilding at \(recoveryFrameSize) frames.")
 
         engine.stop()
         do {
             let refreshed = try AudioDeviceCatalog.outputDevices()
-            devices = refreshed
+            if devices != refreshed {
+                devices = refreshed
+            }
             guard let device = refreshed.first(where: { $0.uid == runningDeviceUID }),
                   OutputDevicePolicy.isProcessable(device) else {
                 throw SpikeError("The selected output is no longer available as the default device.")
@@ -585,27 +620,115 @@ final class SpikeViewModel: ObservableObject {
                 requestedBufferFrameSize: recoveryFrameSize
             )
             runningSampleRate = device.sampleRate
-            snapshot = engine.snapshot()
+            latestSnapshot = engine.snapshot()
+            publishLatestDiagnostics(force: true)
             reliabilityMonitor.reset(
-                callbackCount: snapshot.callbackCount,
-                overloadCount: snapshot.processorOverloadCount,
+                callbackCount: latestSnapshot.callbackCount,
+                overloadCount: latestSnapshot.processorOverloadCount,
                 now: ProcessInfo.processInfo.systemUptime
             )
-            status = "DSP recovered at \(configuration.aggregateBufferFrameSize) frames."
+            setStatus("DSP recovered at \(configuration.aggregateBufferFrameSize) frames.")
             appendLog(status)
         } catch {
             stop(reason: "Audio recovery failed; EQ stopped and direct audio was restored: \(error.localizedDescription)")
         }
     }
 
-    private func installMonitoringTimer() {
-        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+    private func installMonitoringTimers() {
+        let healthTimer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.poll()
             }
         }
-        RunLoop.main.add(timer, forMode: .common)
-        monitoringTimer = timer
+        RunLoop.main.add(healthTimer, forMode: .common)
+        self.healthTimer = healthTimer
+
+        let deviceRefreshTimer = Timer(timeInterval: 10, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshDevices()
+            }
+        }
+        RunLoop.main.add(deviceRefreshTimer, forMode: .common)
+        self.deviceRefreshTimer = deviceRefreshTimer
+    }
+
+    private func installDeviceChangeObserver() {
+        do {
+            deviceChangeObserver = try AudioDeviceChangeObserver { [weak self] in
+                Task { @MainActor [weak self] in
+                    self?.scheduleDeviceRefresh()
+                }
+            }
+        } catch {
+            appendLog("Core Audio change notifications unavailable; using the 10-second safety refresh.")
+        }
+    }
+
+    private func scheduleDeviceRefresh() {
+        pendingDeviceRefresh?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.pendingDeviceRefresh = nil
+            self?.refreshDevices()
+        }
+        pendingDeviceRefresh = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+    }
+
+    private func installMemoryPressureMonitor() {
+        let source = DispatchSource.makeMemoryPressureSource(
+            eventMask: [.normal, .warning, .critical],
+            queue: .main
+        )
+        memoryPressureSource = source
+        source.setEventHandler { [weak self] in
+            guard let self, let source = self.memoryPressureSource else { return }
+            self.handleMemoryPressureEvent(source.data)
+        }
+        source.resume()
+    }
+
+    private func handleMemoryPressureEvent(_ event: DispatchSource.MemoryPressureEvent) {
+        let updatedLevel: SystemMemoryPressureLevel
+        if event.contains(.critical) {
+            updatedLevel = .critical
+        } else if event.contains(.warning) {
+            updatedLevel = .warning
+        } else {
+            updatedLevel = .normal
+        }
+        guard updatedLevel != memoryPressureLevel else { return }
+
+        let previousLevel = memoryPressureLevel
+        memoryPressureLevel = updatedLevel
+        lastSuppressedRecoveryLogTime = -Double.infinity
+        if isRunning {
+            reliabilityMonitor.reset(
+                callbackCount: latestSnapshot.callbackCount,
+                overloadCount: latestSnapshot.processorOverloadCount,
+                now: ProcessInfo.processInfo.systemUptime
+            )
+        }
+        if updatedLevel == .normal {
+            if previousLevel != .normal {
+                appendLog("System memory pressure returned to normal; audio-route recovery re-enabled.")
+            }
+        } else {
+            appendLog("System memory pressure is \(updatedLevel == .critical ? "critical" : "elevated"); disruptive audio-route rebuilds are deferred.")
+        }
+    }
+
+    private func publishLatestDiagnostics(
+        now: TimeInterval = ProcessInfo.processInfo.systemUptime,
+        force: Bool = false
+    ) {
+        guard force || now - lastDiagnosticsPublicationTime >= 1 else { return }
+        diagnostics.publish(latestSnapshot)
+        lastDiagnosticsPublicationTime = now
+    }
+
+    private func setStatus(_ value: String) {
+        guard status != value else { return }
+        status = value
     }
 
     private func appendLog(_ message: String) {
@@ -859,14 +982,14 @@ final class SpikeViewModel: ObservableObject {
     private func updateIdleStatus(using devices: [AudioDeviceDescriptor]) {
         if let selected = devices.first(where: { $0.uid == selectedUID }), selected.isAlive {
             if selected.isDefaultOutput {
-                status = "Ready: \(displayName(for: selected)) is the default output."
+                setStatus("Ready: \(displayName(for: selected)) is the default output.")
             } else {
-                status = "Select this device as the macOS default output."
+                setStatus("Select this device as the macOS default output.")
             }
         } else if devices.contains(where: { $0.isDefaultOutput && $0.isAlive }) {
-            status = "Select the live default output device."
+            setStatus("Select the live default output device.")
         } else {
-            status = "No live output device is available."
+            setStatus("No live output device is available.")
         }
     }
 
